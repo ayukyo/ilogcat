@@ -11,3 +11,5 @@
 *.swp
 .DS_Store
 Thumbs.db
+# Rust build artifacts
+code/target/
