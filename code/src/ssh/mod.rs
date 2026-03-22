@@ -1,2 +1,5 @@
-// SSH module - placeholder
-// Will be implemented in future phases
+pub mod client;
+pub mod config;
+
+pub use client::SshClient;
+pub use config::SshConfig;

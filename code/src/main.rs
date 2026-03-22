@@ -5,34 +5,42 @@ mod ssh;
 mod config;
 
 use gtk4::prelude::*;
-use gtk4::Application;
+use gtk4::{Application, ApplicationWindow, Box, ScrolledWindow, TextView, Statusbar, DropDown, Button, SearchEntry, ToggleButton, Label, Separator};
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+use crate::log::{LogSource, LogEntry, LogLevel, CommandSource, FileWatchSource};
+use crate::filter::Filter;
+use crate::config::Config;
 
 const APP_ID: &str = "com.openclaw.ilogcat";
 
 fn main() {
-    // Create a new application
+    // 加载配置
+    let _config = Config::load().unwrap_or_default();
+
+    // 创建 GTK 应用
     let app = Application::builder()
         .application_id(APP_ID)
         .build();
 
-    // Connect to "activate" signal
     app.connect_activate(build_ui);
-
-    // Run the application
     app.run();
 }
 
 fn build_ui(app: &Application) {
-    // Create a window
-    let window = gtk4::ApplicationWindow::builder()
+    // 创建主窗口
+    let window = ApplicationWindow::builder()
         .application(app)
         .title("iLogCat")
-        .default_width(1000)
-        .default_height(600)
+        .default_width(1200)
+        .default_height(800)
         .build();
 
-    // Create the main vertical box
-    let vbox = gtk4::Box::builder()
+    // 创建主垂直布局
+    let vbox = Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .spacing(6)
         .margin_top(6)
@@ -41,61 +49,72 @@ fn build_ui(app: &Application) {
         .margin_end(6)
         .build();
 
-    // Create toolbar
-    let toolbar = create_toolbar();
+    // 创建工具栏
+    let toolbar = create_toolbar(&window);
     vbox.append(&toolbar);
 
-    // Create filter bar
+    // 创建过滤栏
     let filter_bar = create_filter_bar();
     vbox.append(&filter_bar);
 
-    // Create log view (scrolled text view)
-    let scrolled = gtk4::ScrolledWindow::builder()
+    // 创建日志显示区域
+    let scrolled = ScrolledWindow::builder()
         .hexpand(true)
         .vexpand(true)
         .build();
 
-    let text_view = gtk4::TextView::builder()
+    let text_view = TextView::builder()
         .editable(false)
         .monospace(true)
         .wrap_mode(gtk4::WrapMode::WordChar)
         .build();
 
-    // Create text buffer and tags for log levels
     let buffer = text_view.buffer();
     setup_log_tags(&buffer);
 
     scrolled.set_child(Some(&text_view));
     vbox.append(&scrolled);
 
-    // Create status bar
-    let status_bar = gtk4::Statusbar::new();
-    status_bar.push(
-        status_bar.context_id("main"),
-        "Ready - No log source connected",
-    );
+    // 创建状态栏
+    let status_bar = Statusbar::new();
+    let context_id = status_bar.context_id("main");
+    status_bar.push(context_id, "Ready - No log source connected");
     vbox.append(&status_bar);
 
-    // Set the box as window content
+    // 设置窗口内容
     window.set_child(Some(&vbox));
 
-    // Show the window
+    // 状态变量
+    let log_entries: Rc<RefCell<Vec<LogEntry>>> = Rc::new(RefCell::new(Vec::new()));
+    let is_paused = Arc::new(AtomicBool::new(false));
+    let filter = Rc::new(RefCell::new(Filter::new()));
+    let current_source: Rc<RefCell<Option<Box<dyn LogSource>>>> = Rc::new(RefCell::new(None));
+
+    // 存储状态引用以便在回调中使用
+    window.set_data("log_entries", log_entries.clone());
+    window.set_data("is_paused", is_paused.clone());
+    window.set_data("filter", filter.clone());
+    window.set_data("text_buffer", buffer.clone());
+    window.set_data("status_bar", status_bar.clone());
+    window.set_data("context_id", context_id);
+    window.set_data("current_source", current_source.clone());
+
+    // 显示窗口
     window.present();
 }
 
-fn create_toolbar() -> gtk4::Box {
-    let toolbar = gtk4::Box::builder()
+fn create_toolbar(window: &ApplicationWindow) -> Box {
+    let toolbar = Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
         .spacing(6)
         .build();
 
-    // Device/Source selector
-    let source_label = gtk4::Label::builder()
-        .label("Source:")
-        .build();
+    // 源选择器标签
+    let source_label = Label::new(Some("Source:"));
     toolbar.append(&source_label);
 
-    let source_combo = gtk4::DropDown::from_strings(&[
+    // 源选择下拉框
+    let source_combo = DropDown::from_strings(&[
         "Local: dmesg",
         "Local: journalctl",
         "File...",
@@ -103,17 +122,16 @@ fn create_toolbar() -> gtk4::Box {
     ]);
     toolbar.append(&source_combo);
 
-    // Separator
-    let sep = gtk4::Separator::new(gtk4::Orientation::Vertical);
+    // 分隔符
+    let sep = Separator::new(gtk4::Orientation::Vertical);
     toolbar.append(&sep);
 
-    // Log level selector
-    let level_label = gtk4::Label::builder()
-        .label("Level:")
-        .build();
+    // 级别选择标签
+    let level_label = Label::new(Some("Level:"));
     toolbar.append(&level_label);
 
-    let level_combo = gtk4::DropDown::from_strings(&[
+    // 级别选择下拉框
+    let level_combo = DropDown::from_strings(&[
         "Verbose",
         "Debug",
         "Info",
@@ -121,21 +139,23 @@ fn create_toolbar() -> gtk4::Box {
         "Error",
         "Fatal",
     ]);
-    level_combo.set_selected(2); // Default: Info
+    level_combo.set_selected(2); // 默认 Info
     toolbar.append(&level_combo);
 
-    // Buttons
-    let clear_btn = gtk4::Button::builder()
+    // 清除按钮
+    let clear_btn = Button::builder()
         .label("Clear")
         .build();
     toolbar.append(&clear_btn);
 
-    let pause_btn = gtk4::Button::builder()
+    // 暂停按钮
+    let pause_btn = Button::builder()
         .label("Pause")
         .build();
     toolbar.append(&pause_btn);
 
-    let settings_btn = gtk4::Button::builder()
+    // 设置按钮
+    let settings_btn = Button::builder()
         .icon_name("preferences-system-symbolic")
         .build();
     toolbar.append(&settings_btn);
@@ -143,33 +163,33 @@ fn create_toolbar() -> gtk4::Box {
     toolbar
 }
 
-fn create_filter_bar() -> gtk4::Box {
-    let filter_bar = gtk4::Box::builder()
+fn create_filter_bar() -> Box {
+    let filter_bar = Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
         .spacing(6)
         .build();
 
-    // Search entry
-    let search_entry = gtk4::SearchEntry::builder()
+    // 搜索框
+    let search_entry = SearchEntry::builder()
         .placeholder_text("Filter logs...")
         .hexpand(true)
         .build();
     filter_bar.append(&search_entry);
 
-    // Add filter button
-    let add_filter_btn = gtk4::Button::builder()
+    // 添加过滤按钮
+    let add_filter_btn = Button::builder()
         .label("+ Filter")
         .build();
     filter_bar.append(&add_filter_btn);
 
-    // Regex toggle
-    let regex_toggle = gtk4::ToggleButton::builder()
+    // 正则开关
+    let regex_toggle = ToggleButton::builder()
         .label("Regex")
         .build();
     filter_bar.append(&regex_toggle);
 
-    // Case sensitive toggle
-    let case_toggle = gtk4::ToggleButton::builder()
+    // 大小写敏感开关
+    let case_toggle = ToggleButton::builder()
         .label("Aa")
         .build();
     filter_bar.append(&case_toggle);
@@ -219,7 +239,7 @@ fn setup_log_tags(buffer: &gtk4::TextBuffer) {
     let tag_fatal = gtk4::TextTag::builder()
         .name("fatal")
         .foreground("#CC0000")
-        .weight(700) // Bold
+        .weight(700)
         .build();
     tag_table.add(&tag_fatal);
 }
