@@ -85,8 +85,8 @@ pub trait LogSource: Send {
     fn is_running(&self) -> bool;
 }
 
-/// 为 Box<dyn LogSource> 实现 LogSource trait，使其可以作为 trait 对象使用
-impl LogSource for Box<dyn LogSource> {
+/// 为 std::boxed::Box<dyn LogSource> 实现 LogSource trait，使其可以作为 trait 对象使用
+impl LogSource for std::boxed::Box<dyn LogSource> {
     fn start(&mut self) -> anyhow::Result<()> {
         (**self).start()
     }
