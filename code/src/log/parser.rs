@@ -110,13 +110,14 @@ impl LogParser {
         // 格式: 10-22 14:30:45.123
         let naive = NaiveTime::parse_from_str(time_str, "%m-%d %H:%M:%S%.3f").ok()?;
         let now = Local::now();
-        Some(
-            now.date_naive()
-                .and_hms_opt(naive.hour(), naive.minute(), naive.second())?
-                .and_nano(naive.nanosecond())?
-                .and_local_timezone(Local)
-                .single()?
-        )
+        let date = now.date_naive();
+        let time = date.and_hms_nano_opt(
+            naive.hour(),
+            naive.minute(),
+            naive.second(),
+            naive.nanosecond()
+        )?;
+        Some(time.and_local_timezone(Local).single()?)
     }
     
     fn parse_bracket_time(&self, time_str: &str) -> anyhow::Result<DateTime<Local>> {
