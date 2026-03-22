@@ -15,7 +15,7 @@ pub struct MainWindow {
     pub filter: Filter,
     pub log_entries: Vec<LogEntry>,
     pub filtered_entries: Vec<LogEntry>,
-    pub current_source: Option<Box<dyn LogSource>>,
+    pub current_source: Option<std::boxed::Box<dyn LogSource>>,
     pub is_paused: Arc<AtomicBool>,
     pub log_count: usize,
     pub filtered_count: usize,
@@ -162,8 +162,8 @@ impl MainWindow {
             );
 
             // 插入到文本缓冲区
-            let end_iter = self.log_buffer.end_iter();
-            self.log_buffer.insert(&end_iter, &line);
+            let mut end_iter = self.log_buffer.end_iter();
+            self.log_buffer.insert(&mut end_iter, &line);
 
             // 应用颜色标签到最后一行
             let start_iter = self.log_buffer.iter_at_offset(
@@ -198,8 +198,8 @@ impl MainWindow {
 
     /// 滚动到末尾
     pub fn scroll_to_end(&self) {
-        let end_iter = self.log_buffer.end_iter();
-        self.log_view.scroll_to_iter(&end_iter, 0.0, false, 0.0, 0.0);
+        let mut end_iter = self.log_buffer.end_iter();
+        self.log_view.scroll_to_iter(&mut end_iter, 0.0, false, 0.0, 0.0);
     }
 
     /// 更新状态栏

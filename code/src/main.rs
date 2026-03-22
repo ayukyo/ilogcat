@@ -91,13 +91,15 @@ fn build_ui(app: &Application) {
     let current_source: Rc<RefCell<Option<std::boxed::Box<dyn LogSource>>>> = Rc::new(RefCell::new(None));
 
     // 存储状态引用以便在回调中使用
-    window.set_data("log_entries", log_entries.clone());
-    window.set_data("is_paused", is_paused.clone());
-    window.set_data("filter", filter.clone());
-    window.set_data("text_buffer", buffer.clone());
-    window.set_data("status_bar", status_bar.clone());
-    window.set_data("context_id", context_id);
-    window.set_data("current_source", current_source.clone());
+    unsafe {
+        window.set_data("log_entries", log_entries.clone());
+        window.set_data("is_paused", is_paused.clone());
+        window.set_data("filter", filter.clone());
+        window.set_data("text_buffer", buffer.clone());
+        window.set_data("status_bar", status_bar.clone());
+        window.set_data("context_id", context_id);
+        window.set_data("current_source", current_source.clone());
+    }
 
     // 显示窗口
     window.present();

@@ -102,9 +102,9 @@ impl LogView {
             entry.message
         );
 
-        let end_iter = self.buffer.end_iter();
+        let mut end_iter = self.buffer.end_iter();
         let start_offset = self.buffer.char_count();
-        self.buffer.insert(&end_iter, &line);
+        self.buffer.insert(&mut end_iter, &line);
 
         // 应用标签
         let start_iter = self.buffer.iter_at_offset(start_offset);
@@ -129,8 +129,8 @@ impl LogView {
 
     /// 滚动到底部
     pub fn scroll_to_end(&self) {
-        let end_iter = self.buffer.end_iter();
-        self.text_view.scroll_to_iter(&end_iter, 0.0, false, 0.0, 0.0);
+        let mut end_iter = self.buffer.end_iter();
+        self.text_view.scroll_to_iter(&mut end_iter, 0.0, false, 0.0, 0.0);
     }
 
     /// 设置最大行数
