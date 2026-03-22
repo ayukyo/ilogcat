@@ -1,0 +1,43 @@
+{
+  "id": "ilogcat",
+  "name": "iLogCat - Linux日志查看器",
+  "description": "模仿Android Studio logcat的Linux日志查看工具",
+  "platform": "linux",
+  "techStack": {
+    "language": "Rust",
+    "gui": "GTK4",
+    "build": "Cargo"
+  },
+  "status": "in_progress",
+  "priority": 1,
+  "createdAt": "2026-03-22T21:30:00Z",
+  "lastActivity": "2026-03-22T21:45:00Z",
+  "progress": 20,
+  "currentStage": "核心功能开发",
+  "currentTask": "完成项目初始化",
+  "stages": [
+    {"name": "需求分析", "status": "completed", "progress": 100},
+    {"name": "技术设计", "status": "completed", "progress": 100},
+    {"name": "核心功能开发", "status": "in_progress", "progress": 10},
+    {"name": "SSH远程功能", "status": "pending", "progress": 0},
+    {"name": "测试验证", "status": "pending", "progress": 0}
+  ],
+  "completedTasks": [
+    "创建项目结构",
+    "编写需求分析文档",
+    "编写技术设计文档",
+    "实现核心模块框架",
+    "实现 GTK4 UI 框架"
+  ],
+  "nextTasks": [
+    "完成日志源实现",
+    "实现 SSH 连接功能",
+    "实现文件跟踪功能",
+    "完善 UI 交互"
+  ],
+  "notes": [
+    "编译因内存不足被终止，需要在有更多资源的机器上继续",
+    "核心代码框架已完成，结构清晰",
+    "依赖已安装（gtk4-devel, libssh2-devel）"
+  ]
+}
