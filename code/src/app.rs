@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box, ScrolledWindow, TextView, Statusbar, Label, Separator, Orientation, Button, SearchEntry, ShortcutController, ShortcutTrigger, ShortcutAction};
+use gtk4::{Application, ApplicationWindow, Box, ScrolledWindow, TextView, Statusbar, Label, Separator, Orientation, Button, SearchEntry};
 use gtk4::gdk::ModifierType;
 use glib;
 use std::cell::RefCell;
@@ -196,57 +196,38 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
 
 /// 设置键盘快捷键
 fn setup_shortcuts(window: &ApplicationWindow, state: Rc<RefCell<AppState>>) {
-    let controller = ShortcutController::new();
-    controller.set_scope(gtk4::ShortcutScope::Global);
-
-    // Ctrl+L - 清除日志
-    let clear_action = ShortcutAction::from_name("clear-logs");
-    let clear_trigger = ShortcutTrigger::parse_string("<Control>l");
-    let clear_shortcut = gtk4::Shortcut::builder()
-        .trigger(clear_trigger)
-        .action(clear_action)
-        .build();
+    // 使用 EventControllerKey 来实现快捷键
+    let key_controller = gtk4::EventControllerKey::new();
     
     let state_clone = state.clone();
-    clear_shortcut.connect_activate(move |_, _| {
-        let mut state_ref = state_clone.borrow_mut();
-        state_ref.clear_logs();
-        glib::Propagation::Stop
+    key_controller.connect_key_pressed(move |_, key, _keycode, modifiers| {
+        // 检查是否按下了 Ctrl
+        if !modifiers.contains(ModifierType::CONTROL_MASK) {
+            return glib::Propagation::Proceed;
+        }
+        
+        match key {
+            // Ctrl+L - 清除日志
+            gtk4::gdk::Key::l | gtk4::gdk::Key::L => {
+                let mut state_ref = state_clone.borrow_mut();
+                state_ref.clear_logs();
+                glib::Propagation::Stop
+            }
+            // Ctrl+S - 暂停/恢复
+            gtk4::gdk::Key::s | gtk4::gdk::Key::S => {
+                let mut state_ref = state_clone.borrow_mut();
+                state_ref.toggle_pause();
+                if let Some(ref mut window) = state_ref.main_window {
+                    window.update_status();
+                }
+                glib::Propagation::Stop
+            }
+            // Ctrl+Q - 退出（使用默认处理）
+            _ => glib::Propagation::Proceed,
+        }
     });
-    controller.add_shortcut(clear_shortcut);
-
-    // Ctrl+S - 暂停/恢复
-    let pause_action = ShortcutAction::from_name("toggle-pause");
-    let pause_trigger = ShortcutTrigger::parse_string("<Control>s");
-    let pause_shortcut = gtk4::Shortcut::builder()
-        .trigger(pause_trigger)
-        .action(pause_action)
-        .build();
     
-    let state_clone = state.clone();
-    pause_shortcut.connect_activate(move |_, _| {
-        let mut state_ref = state_clone.borrow_mut();
-        state_ref.toggle_pause();
-        glib::Propagation::Stop
-    });
-    controller.add_shortcut(pause_shortcut);
-
-    // Ctrl+Q - 退出
-    let quit_action = ShortcutAction::from_name("quit");
-    let quit_trigger = ShortcutTrigger::parse_string("<Control>q");
-    let quit_shortcut = gtk4::Shortcut::builder()
-        .trigger(quit_trigger)
-        .action(quit_action)
-        .build();
-    
-    let window_clone = window.clone();
-    quit_shortcut.connect_activate(move |_, _| {
-        window_clone.close();
-        glib::Propagation::Stop
-    });
-    controller.add_shortcut(quit_shortcut);
-
-    window.add_controller(controller);
+    window.add_controller(key_controller);
 }
 
 fn refresh_logs(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
