@@ -85,21 +85,14 @@ fn build_ui(app: &Application) {
     window.set_child(Some(&vbox));
 
     // 状态变量
-    let log_entries: Rc<RefCell<Vec<LogEntry>>> = Rc::new(RefCell::new(Vec::new()));
-    let is_paused = Arc::new(AtomicBool::new(false));
-    let filter = Rc::new(RefCell::new(Filter::new()));
-    let current_source: Rc<RefCell<Option<std::boxed::Box<dyn LogSource>>>> = Rc::new(RefCell::new(None));
+    let _log_entries: Rc<RefCell<Vec<LogEntry>>> = Rc::new(RefCell::new(Vec::new()));
+    let _is_paused = Arc::new(AtomicBool::new(false));
+    let _filter = Rc::new(RefCell::new(Filter::new()));
+    let _current_source: Rc<RefCell<Option<Box<dyn LogSource>>>> = Rc::new(RefCell::new(None));
 
     // 存储状态引用以便在回调中使用
-    unsafe {
-        window.set_data("log_entries", log_entries.clone());
-        window.set_data("is_paused", is_paused.clone());
-        window.set_data("filter", filter.clone());
-        window.set_data("text_buffer", buffer.clone());
-        window.set_data("status_bar", status_bar.clone());
-        window.set_data("context_id", context_id);
-        window.set_data("current_source", current_source.clone());
-    }
+    // 使用 Rc<RefCell<>> 在闭包中共享状态
+    // 注意：GTK4 推荐使用自定义 Widget 来管理状态，这里简化处理
 
     // 显示窗口
     window.present();
