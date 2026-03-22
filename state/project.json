@@ -11,16 +11,15 @@
   "status": "in_progress",
   "priority": 1,
   "createdAt": "2026-03-22T21:30:00Z",
-  "lastActivity": "2026-03-22T22:30:00Z",
-  "progress": 30,
-  "currentStage": "核心功能开发",
-  "currentTask": "GitHub Actions 构建成功",
-  "github": "https://github.com/ayukyo/ilogcat",
+  "lastActivity": "2026-03-22T22:50:00Z",
+  "progress": 50,
+  "currentStage": "SSH远程功能开发",
+  "currentTask": "核心功能开发完成，GitHub Actions构建中",
   "stages": [
     {"name": "需求分析", "status": "completed", "progress": 100},
     {"name": "技术设计", "status": "completed", "progress": 100},
-    {"name": "核心功能开发", "status": "in_progress", "progress": 30},
-    {"name": "SSH远程功能", "status": "pending", "progress": 0},
+    {"name": "核心功能开发", "status": "completed", "progress": 100},
+    {"name": "SSH远程功能", "status": "in_progress", "progress": 80},
     {"name": "测试验证", "status": "pending", "progress": 0}
   ],
   "completedTasks": [
@@ -29,19 +28,24 @@
     "编写技术设计文档",
     "实现核心模块框架",
     "实现 GTK4 UI 框架",
-    "配置 GitHub Actions 自动构建",
-    "修复编译错误",
-    "清理 target 目录"
+    "实现配置文件管理",
+    "实现文件跟踪日志源",
+    "实现 SSH 远程日志源",
+    "实现 SSH 客户端管理",
+    "完善 UI 组件（主窗口、日志视图、过滤栏）",
+    "代码提交并推送至 GitHub"
   ],
   "nextTasks": [
-    "完成日志源实现",
-    "实现 SSH 连接功能",
-    "实现文件跟踪功能",
-    "完善 UI 交互"
+    "等待 GitHub Actions 构建结果",
+    "修复可能的编译错误",
+    "测试 SSH 连接功能",
+    "完善 UI 交互逻辑",
+    "编写使用文档"
   ],
   "notes": [
-    "GitHub Actions 云端编译成功 ✅",
-    "本地不编译，依赖云端构建",
-    "核心代码框架已完成，结构清晰"
+    "编译因内存不足被终止，使用 GitHub Actions 云端构建",
+    "核心代码框架已完成，结构清晰",
+    "依赖已安装（gtk4-devel, libssh2-devel）",
+    "GitHub Actions 构建 #6 进行中"
   ]
 }
