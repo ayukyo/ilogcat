@@ -168,6 +168,11 @@ impl SshServerConfig {
             auth,
         }
     }
+    
+    /// 从 ssh::config::SshConfig 转换（用于对话框返回的配置）
+    pub fn from(config: crate::ssh::config::SshConfig) -> Self {
+        Self::from_ssh_config(config)
+    }
 }
 
 impl Config {
@@ -175,6 +180,18 @@ impl Config {
     pub fn config_path() -> Option<PathBuf> {
         ProjectDirs::from("com", "openclaw", "ilogcat")
             .map(|dirs| dirs.config_dir().join("config.toml"))
+    }
+    
+    /// 添加 SSH 服务器配置
+    pub fn add_ssh_server(&mut self, server: SshServerConfig) {
+        // 检查是否已存在同名配置，如果存在则更新
+        if let Some(existing) = self.ssh_servers.iter_mut().find(|s| s.name == server.name) {
+            *existing = server;
+        } else {
+            self.ssh_servers.push(server);
+        }
+        // 自动保存配置
+        let _ = self.save();
     }
 
     /// 加载配置
