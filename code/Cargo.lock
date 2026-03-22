@@ -568,6 +568,7 @@ dependencies = [
  "chrono",
  "crossbeam-channel",
  "directories",
+ "glib",
  "gtk4",
  "regex",
  "serde",

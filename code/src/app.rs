@@ -371,21 +371,26 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
             _ => crate::log::LogLevel::Verbose,
         };
         
-        let mut state_ref = state_clone.borrow_mut();
-        state_ref.filter.set_min_level(min_level);
-        
-        // 重新过滤并刷新显示
-        state_ref.filtered_entries.clear();
-        for entry in &state_ref.log_entries {
-            if state_ref.filter.matches(entry) {
-                state_ref.filtered_entries.push(entry.clone());
+        // 先收集过滤后的条目
+        let filtered_entries: Vec<LogEntry> = {
+            let mut state_ref = state_clone.borrow_mut();
+            state_ref.filter.set_min_level(min_level);
+            
+            // 重新过滤
+            state_ref.filtered_entries.clear();
+            for entry in &state_ref.log_entries {
+                if state_ref.filter.matches(entry) {
+                    state_ref.filtered_entries.push(entry.clone());
+                }
             }
-        }
-        state_ref.filtered_count = state_ref.filtered_entries.len();
+            state_ref.filtered_count = state_ref.filtered_entries.len();
+            state_ref.filtered_entries.clone()
+        };
         
-        // 刷新日志视图
+        // 刷新日志视图（在单独的借用范围内）
+        let mut state_ref = state_clone.borrow_mut();
         if let Some(ref mut window) = state_ref.main_window {
-            window.refresh_filtered_logs(&state_ref.filtered_entries);
+            window.refresh_filtered_logs(&filtered_entries);
         }
     });
 
