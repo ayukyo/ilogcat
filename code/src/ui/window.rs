@@ -15,7 +15,7 @@ pub struct MainWindow {
     pub filter: Filter,
     pub log_entries: Vec<LogEntry>,
     pub filtered_entries: Vec<LogEntry>,
-    pub current_source: Option<Box<dyn LogSource + Send>>,
+    pub current_source: Option<Box<dyn LogSource>>,
     pub is_paused: Arc<AtomicBool>,
     pub log_count: usize,
     pub filtered_count: usize,

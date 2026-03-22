@@ -19,7 +19,7 @@ use std::path::PathBuf;
 pub struct AppState {
     pub config: Config,
     pub main_window: Option<MainWindow>,
-    pub current_source: Option<Box<dyn LogSource + Send>>,
+    pub current_source: Option<Box<dyn LogSource>>,
     pub is_paused: Arc<AtomicBool>,
     pub filter: Filter,
     pub log_entries: Vec<LogEntry>,
@@ -99,7 +99,7 @@ impl AppState {
         }
         
         source.start()?;
-        self.current_source = Some(Box::new(source) as Box<dyn LogSource + Send>);
+        self.current_source = Some(Box::new(source));
         Ok(())
     }
 
@@ -108,7 +108,7 @@ impl AppState {
         
         let mut source = FileWatchSource::new(path);
         source.start()?;
-        self.current_source = Some(Box::new(source) as Box<dyn LogSource + Send>);
+        self.current_source = Some(Box::new(source));
         Ok(())
     }
 
@@ -117,7 +117,7 @@ impl AppState {
         
         let mut source = SshSource::new(config, command.to_string());
         source.start()?;
-        self.current_source = Some(Box::new(source) as Box<dyn LogSource + Send>);
+        self.current_source = Some(Box::new(source));
         Ok(())
     }
 }
@@ -190,7 +190,7 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     window.present();
 }
 
-fn refresh_logs(state: Rc<RefCell<AppState>>) {
+fn refresh_logs(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
     let mut state_ref = state.borrow_mut();
     
     if state_ref.is_paused.load(Ordering::SeqCst) {
