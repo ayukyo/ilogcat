@@ -154,7 +154,7 @@ impl Default for Config {
 
 impl SshServerConfig {
     /// 从 ssh::config::SshConfig 转换
-    pub fn from(config: crate::ssh::config::SshConfig) -> Self {
+    pub fn from_ssh_config(config: crate::ssh::config::SshConfig) -> Self {
         let auth = match config.auth {
             crate::ssh::config::AuthMethod::Password(pwd) => SshAuthConfig::Password { password: pwd },
             crate::ssh::config::AuthMethod::KeyFile(path) => SshAuthConfig::KeyFile { key_file: path },

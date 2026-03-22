@@ -347,7 +347,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
                 let state_ref2 = state_ref.clone();
                 let window_ref2 = window_ref.clone();
                 crate::ui::dialogs::show_ssh_dialog(&window_ref, move |config| {
-                    let server_config = crate::config::SshServerConfig::from(config);
+                    let server_config = crate::config::SshServerConfig::from_ssh_config(config);
                     let mut state = state_ref2.borrow_mut();
                     if let Err(e) = state.start_ssh_source(server_config, "journalctl -f -o short-iso") {
                         crate::ui::dialogs::show_error_dialog(&window_ref2, "Failed to connect SSH", &e.to_string());
