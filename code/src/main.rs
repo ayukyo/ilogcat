@@ -88,7 +88,7 @@ fn build_ui(app: &Application) {
     let log_entries: Rc<RefCell<Vec<LogEntry>>> = Rc::new(RefCell::new(Vec::new()));
     let is_paused = Arc::new(AtomicBool::new(false));
     let filter = Rc::new(RefCell::new(Filter::new()));
-    let current_source: Rc<RefCell<Option<Box<dyn LogSource>>>> = Rc::new(RefCell::new(None));
+    let current_source: Rc<RefCell<Option<std::boxed::Box<dyn LogSource>>>> = Rc::new(RefCell::new(None));
 
     // 存储状态引用以便在回调中使用
     window.set_data("log_entries", log_entries.clone());

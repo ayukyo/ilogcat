@@ -143,9 +143,9 @@ impl LogView {
         let line_count = self.buffer.line_count();
         if line_count > self.max_lines as i32 {
             let lines_to_remove = line_count - self.max_lines as i32;
-            let end_iter = self.buffer.iter_at_line(lines_to_remove);
-            let start_iter = self.buffer.start_iter();
-            self.buffer.delete(&start_iter, &end_iter);
+            let mut start_iter = self.buffer.start_iter();
+            let mut end_iter = self.buffer.iter_at_line(lines_to_remove).unwrap_or_else(|| self.buffer.end_iter());
+            self.buffer.delete(&mut start_iter, &mut end_iter);
         }
     }
 
