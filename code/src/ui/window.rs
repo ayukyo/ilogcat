@@ -22,6 +22,28 @@ pub struct MainWindow {
 }
 
 impl MainWindow {
+    /// 从组件创建主窗口
+    pub fn from_widgets(
+        window: ApplicationWindow,
+        log_view: TextView,
+        log_buffer: gtk4::TextBuffer,
+        status_bar: Statusbar,
+    ) -> Self {
+        Self {
+            window,
+            log_view,
+            log_buffer,
+            status_bar,
+            filter: Filter::new(),
+            log_entries: Vec::new(),
+            filtered_entries: Vec::new(),
+            current_source: None,
+            is_paused: Arc::new(AtomicBool::new(false)),
+            log_count: 0,
+            filtered_count: 0,
+        }
+    }
+
     /// 创建新的主窗口
     pub fn new(app: &Application) -> Self {
         let window = ApplicationWindow::builder()
