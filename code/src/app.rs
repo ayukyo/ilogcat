@@ -355,11 +355,12 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
                     state.clear_logs();
                     // 保存SSH配置
                     state.config.add_ssh_server(crate::config::SshServerConfig::from(ssh_config));
-                    if let Err(e) = state.start_ssh_source(
-                        state.config.ssh_servers.last().unwrap().clone(),
-                        "journalctl -f -o short-iso"
-                    ) {
-                        eprintln!("Failed to start SSH source: {}", e);
+                    // 先获取SSH配置，避免借用冲突
+                    let ssh_config_clone = state.config.ssh_servers.last().cloned();
+                    if let Some(ssh_cfg) = ssh_config_clone {
+                        if let Err(e) = state.start_ssh_source(ssh_cfg, "journalctl -f -o short-iso") {
+                            eprintln!("Failed to start SSH source: {}", e);
+                        }
                     }
                 });
             }
@@ -381,21 +382,27 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
         };
         
         // 设置最小日志级别并重新过滤显示
-        let mut state_ref = state_clone.borrow_mut();
-        state_ref.filter.set_min_level(min_level);
-        
-        // 重新过滤所有日志条目
-        state_ref.filtered_entries.clear();
-        for entry in &state_ref.log_entries {
-            if state_ref.filter.matches(entry) {
-                state_ref.filtered_entries.push(entry.clone());
+        let filtered_entries = {
+            let mut state_ref = state_clone.borrow_mut();
+            state_ref.filter.set_min_level(min_level);
+            
+            // 重新过滤所有日志条目
+            state_ref.filtered_entries.clear();
+            for entry in &state_ref.log_entries {
+                if state_ref.filter.matches(entry) {
+                    state_ref.filtered_entries.push(entry.clone());
+                }
             }
-        }
-        state_ref.filtered_count = state_ref.filtered_entries.len();
+            state_ref.filtered_count = state_ref.filtered_entries.len();
+            state_ref.filtered_entries.clone()
+        };
         
-        // 刷新显示
-        if let Some(ref mut window) = state_ref.main_window {
-            window.refresh_filtered_logs(&state_ref.filtered_entries);
+        // 刷新显示 - 在独立作用域中避免借用冲突
+        {
+            let mut state_ref = state_clone.borrow_mut();
+            if let Some(ref mut window) = state_ref.main_window {
+                window.refresh_filtered_logs(&filtered_entries);
+            }
         }
     });
 
