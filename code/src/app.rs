@@ -309,50 +309,33 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
         .build();
     toolbar.append(&pause_btn);
 
-    let window_clone = window.clone();
     let state_clone = state.clone();
     source_combo.connect_selected_notify(move |combo| {
         let idx = combo.selected();
         let state_ref = state_clone.clone();
-        let window_ref = window_clone.clone();
         
         match idx {
             0 => {
                 // dmesg
                 let mut state = state_ref.borrow_mut();
                 if let Err(e) = state.start_command_source("dmesg", &["-w", "--time-format=iso"]) {
-                    crate::ui::dialogs::show_error_dialog(&window_ref, "Failed to start dmesg", &e.to_string());
+                    eprintln!("Failed to start dmesg: {}", e);
                 }
             }
             1 => {
                 // journalctl
                 let mut state = state_ref.borrow_mut();
                 if let Err(e) = state.start_command_source("journalctl", &["-f", "-o", "short-iso"]) {
-                    crate::ui::dialogs::show_error_dialog(&window_ref, "Failed to start journalctl", &e.to_string());
+                    eprintln!("Failed to start journalctl: {}", e);
                 }
             }
             2 => {
-                // File
-                let state_ref2 = state_ref.clone();
-                let window_ref2 = window_ref.clone();
-                crate::ui::dialogs::show_file_dialog(&window_ref, move |path| {
-                    let mut state = state_ref2.borrow_mut();
-                    if let Err(e) = state.start_file_watch_source(path) {
-                        crate::ui::dialogs::show_error_dialog(&window_ref2, "Failed to open file", &e.to_string());
-                    }
-                });
+                // File - TODO: 实现文件选择对话框
+                eprintln!("File source selected - dialog not implemented yet");
             }
             3 => {
-                // SSH
-                let state_ref2 = state_ref.clone();
-                let window_ref2 = window_ref.clone();
-                crate::ui::dialogs::show_ssh_dialog(&window_ref, move |config| {
-                    let server_config = crate::config::SshServerConfig::from_ssh_config(config);
-                    let mut state = state_ref2.borrow_mut();
-                    if let Err(e) = state.start_ssh_source(server_config, "journalctl -f -o short-iso") {
-                        crate::ui::dialogs::show_error_dialog(&window_ref2, "Failed to connect SSH", &e.to_string());
-                    }
-                });
+                // SSH - TODO: 实现SSH连接对话框
+                eprintln!("SSH source selected - dialog not implemented yet");
             }
             _ => {}
         }
@@ -371,27 +354,10 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
             _ => crate::log::LogLevel::Verbose,
         };
         
-        // 先收集过滤后的条目
-        let filtered_entries: Vec<LogEntry> = {
-            let mut state_ref = state_clone.borrow_mut();
-            state_ref.filter.set_min_level(min_level);
-            
-            // 重新过滤
-            state_ref.filtered_entries.clear();
-            for entry in &state_ref.log_entries {
-                if state_ref.filter.matches(entry) {
-                    state_ref.filtered_entries.push(entry.clone());
-                }
-            }
-            state_ref.filtered_count = state_ref.filtered_entries.len();
-            state_ref.filtered_entries.clone()
-        };
-        
-        // 刷新日志视图（在单独的借用范围内）
+        // 设置最小日志级别
         let mut state_ref = state_clone.borrow_mut();
-        if let Some(ref mut window) = state_ref.main_window {
-            window.refresh_filtered_logs(&filtered_entries);
-        }
+        state_ref.filter.set_min_level(min_level);
+        // TODO: 重新过滤并刷新显示
     });
 
     let state_clone = state.clone();
