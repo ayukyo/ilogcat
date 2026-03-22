@@ -386,10 +386,14 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
             let mut state_ref = state_clone.borrow_mut();
             state_ref.filter.set_min_level(min_level);
             
+            // 先克隆所有日志条目和过滤器，避免借用冲突
+            let log_entries_clone: Vec<LogEntry> = state_ref.log_entries.clone();
+            let filter = &state_ref.filter;
+            
             // 重新过滤所有日志条目
             state_ref.filtered_entries.clear();
-            for entry in &state_ref.log_entries {
-                if state_ref.filter.matches(entry) {
+            for entry in &log_entries_clone {
+                if filter.matches(entry) {
                     state_ref.filtered_entries.push(entry.clone());
                 }
             }
