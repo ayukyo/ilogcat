@@ -383,17 +383,19 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
         
         // 设置最小日志级别并重新过滤显示
         let filtered_entries = {
+            // 第一步：设置过滤级别并克隆所需数据
+            let (log_entries_clone, min_level_clone) = {
+                let mut state_ref = state_clone.borrow_mut();
+                state_ref.filter.set_min_level(min_level);
+                let entries = state_ref.log_entries.clone();
+                (entries, min_level)
+            };
+            
+            // 第二步：在独立作用域中执行过滤操作
             let mut state_ref = state_clone.borrow_mut();
-            state_ref.filter.set_min_level(min_level);
-            
-            // 先克隆所有日志条目和过滤器，避免借用冲突
-            let log_entries_clone: Vec<LogEntry> = state_ref.log_entries.clone();
-            let filter = &state_ref.filter;
-            
-            // 重新过滤所有日志条目
             state_ref.filtered_entries.clear();
             for entry in &log_entries_clone {
-                if filter.matches(entry) {
+                if entry.level as i32 >= min_level_clone as i32 {
                     state_ref.filtered_entries.push(entry.clone());
                 }
             }
