@@ -1,0 +1,13 @@
+/target
+/.cargo
+**/*.rs.bk
+*.pdb
+.env
+.env.local
+*.key
+*.pem
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

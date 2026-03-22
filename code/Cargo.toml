@@ -1,0 +1,21 @@
+[package]
+name = "ilogcat"
+version = "0.1.0"
+edition = "2021"
+authors = ["DevAgent <dev-agent@openclaw.local>"]
+description = "A logcat-like log viewer for Linux, inspired by Android Studio Logcat"
+
+[dependencies]
+gtk4 = "0.7"
+ssh2 = "0.9"
+regex = "1.10"
+tokio = { version = "1.35", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
+thiserror = "1.0"
+directories = "5.0"
+
+[build-dependencies]
+gtk4 = "0.7"
