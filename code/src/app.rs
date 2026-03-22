@@ -232,14 +232,16 @@ fn setup_shortcuts(window: &ApplicationWindow, state: Rc<RefCell<AppState>>) {
 
 fn refresh_logs(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
     // 先检查是否暂停
-    {
+    let is_paused = {
         let state_ref = state.borrow();
-        if state_ref.is_paused.load(Ordering::SeqCst) {
-            return glib::ControlFlow::Continue;
-        }
+        state_ref.is_paused.load(Ordering::SeqCst)
+    };
+    
+    if is_paused {
+        return glib::ControlFlow::Continue;
     }
 
-    // 收集日志条目
+    // 收集日志条目 - 使用临时存储避免借用冲突
     let entries: Vec<LogEntry> = {
         let mut state_ref = state.borrow_mut();
         if let Some(ref mut source) = state_ref.current_source {
