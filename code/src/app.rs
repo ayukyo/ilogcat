@@ -191,14 +191,32 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
 }
 
 fn refresh_logs(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
-    let mut state_ref = state.borrow_mut();
-    
-    if state_ref.is_paused.load(Ordering::SeqCst) {
-        return glib::ControlFlow::Continue;
+    // 先检查是否暂停
+    {
+        let state_ref = state.borrow();
+        if state_ref.is_paused.load(Ordering::SeqCst) {
+            return glib::ControlFlow::Continue;
+        }
     }
 
-    if let Some(ref mut source) = state_ref.current_source {
-        while let Some(entry) = source.try_recv() {
+    // 收集日志条目
+    let entries: Vec<LogEntry> = {
+        let mut state_ref = state.borrow_mut();
+        if let Some(ref mut source) = state_ref.current_source {
+            let mut entries = Vec::new();
+            while let Some(entry) = source.try_recv() {
+                entries.push(entry);
+            }
+            entries
+        } else {
+            Vec::new()
+        }
+    };
+
+    // 处理日志条目
+    if !entries.is_empty() {
+        let mut state_ref = state.borrow_mut();
+        for entry in entries {
             state_ref.append_log_entry(entry);
         }
     }
