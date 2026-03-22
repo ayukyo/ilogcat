@@ -218,6 +218,54 @@ impl MainWindow {
         self.update_status();
     }
 
+    /// 刷新过滤后的日志显示
+    pub fn refresh_filtered_logs(&mut self, entries: &[LogEntry]) {
+        // 清空当前显示
+        self.log_buffer.set_text("");
+        
+        // 重新插入过滤后的日志
+        for entry in entries {
+            self.append_log_entry_internal(entry);
+        }
+        
+        self.filtered_count = entries.len();
+        self.update_status();
+    }
+
+    /// 内部方法：添加日志条目到缓冲区（不更新统计）
+    fn append_log_entry_internal(&self, entry: &LogEntry) {
+        // 获取标签名称
+        let tag_name = match entry.level {
+            LogLevel::Verbose => "verbose",
+            LogLevel::Debug => "debug",
+            LogLevel::Info => "info",
+            LogLevel::Warn => "warn",
+            LogLevel::Error => "error",
+            LogLevel::Fatal => "fatal",
+        };
+
+        // 格式化日志行
+        let line = format!(
+            "{} {} {}: {}\n",
+            entry.timestamp.format("%H:%M:%S.%3f"),
+            entry.level,
+            entry.tag,
+            entry.message
+        );
+
+        // 插入到文本缓冲区
+        let mut end_iter = self.log_buffer.end_iter();
+        self.log_buffer.insert(&mut end_iter, &line);
+
+        // 应用颜色标签到最后一行
+        let line_start = self.log_buffer.char_count() - line.len() as i32;
+        if line_start >= 0 {
+            let start_iter = self.log_buffer.iter_at_offset(line_start);
+            let end_iter = self.log_buffer.end_iter();
+            self.log_buffer.apply_tag_by_name(tag_name, &start_iter, &end_iter);
+        }
+    }
+
     /// 滚动到末尾
     pub fn scroll_to_end(&self) {
         let mut end_iter = self.log_buffer.end_iter();

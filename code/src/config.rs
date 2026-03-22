@@ -152,6 +152,24 @@ impl Default for Config {
     }
 }
 
+impl SshServerConfig {
+    /// 从 ssh::config::SshConfig 转换
+    pub fn from(config: crate::ssh::config::SshConfig) -> Self {
+        let auth = match config.auth {
+            crate::ssh::config::AuthMethod::Password(pwd) => SshAuthConfig::Password { password: pwd },
+            crate::ssh::config::AuthMethod::KeyFile(path) => SshAuthConfig::KeyFile { key_file: path },
+        };
+        
+        Self {
+            name: config.name,
+            host: config.host,
+            port: config.port,
+            username: config.username,
+            auth,
+        }
+    }
+}
+
 impl Config {
     /// 获取配置文件路径
     pub fn config_path() -> Option<PathBuf> {

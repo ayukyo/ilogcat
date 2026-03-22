@@ -25,6 +25,30 @@ impl Filter {
         }
     }
 
+    /// 设置最小日志级别（显示该级别及以上的日志）
+    pub fn set_min_level(&mut self, min_level: crate::log::LogLevel) {
+        use crate::log::LogLevel;
+        self.levels.clear();
+        
+        let levels_to_include = match min_level {
+            LogLevel::Verbose => vec!["V", "D", "I", "W", "E", "F"],
+            LogLevel::Debug => vec!["D", "I", "W", "E", "F"],
+            LogLevel::Info => vec!["I", "W", "E", "F"],
+            LogLevel::Warn => vec!["W", "E", "F"],
+            LogLevel::Error => vec!["E", "F"],
+            LogLevel::Fatal => vec!["F"],
+        };
+        
+        for level in levels_to_include {
+            self.levels.insert(level.to_string());
+        }
+    }
+
+    /// 清除级别过滤
+    pub fn clear_level_filter(&mut self) {
+        self.levels.clear();
+    }
+
     /// 检查日志条目是否通过过滤
     pub fn matches(&self, entry: &LogEntry) -> bool {
         // 级别过滤

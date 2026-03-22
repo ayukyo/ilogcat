@@ -1,5 +1,6 @@
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box, ScrolledWindow, TextView, Statusbar, Label, Separator, Orientation, Button, SearchEntry};
+use gtk4::{Application, ApplicationWindow, Box, ScrolledWindow, TextView, Statusbar, Label, Separator, Orientation, Button, SearchEntry, ShortcutController, ShortcutTrigger, ShortcutAction};
+use gtk4::gdk::ModifierType;
 use glib;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -169,6 +170,9 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
 
     window.set_child(Some(&vbox));
 
+    // 设置快捷键
+    setup_shortcuts(&window, state.clone());
+
     let main_window = MainWindow::from_widgets(
         window.clone(),
         text_view,
@@ -188,6 +192,61 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     });
 
     window.present();
+}
+
+/// 设置键盘快捷键
+fn setup_shortcuts(window: &ApplicationWindow, state: Rc<RefCell<AppState>>) {
+    let controller = ShortcutController::new();
+    controller.set_scope(gtk4::ShortcutScope::Global);
+
+    // Ctrl+L - 清除日志
+    let clear_action = ShortcutAction::from_name("clear-logs");
+    let clear_trigger = ShortcutTrigger::parse_string("<Control>l");
+    let clear_shortcut = gtk4::Shortcut::builder()
+        .trigger(clear_trigger)
+        .action(clear_action)
+        .build();
+    
+    let state_clone = state.clone();
+    clear_shortcut.connect_activate(move |_, _| {
+        let mut state_ref = state_clone.borrow_mut();
+        state_ref.clear_logs();
+        glib::Propagation::Stop
+    });
+    controller.add_shortcut(clear_shortcut);
+
+    // Ctrl+S - 暂停/恢复
+    let pause_action = ShortcutAction::from_name("toggle-pause");
+    let pause_trigger = ShortcutTrigger::parse_string("<Control>s");
+    let pause_shortcut = gtk4::Shortcut::builder()
+        .trigger(pause_trigger)
+        .action(pause_action)
+        .build();
+    
+    let state_clone = state.clone();
+    pause_shortcut.connect_activate(move |_, _| {
+        let mut state_ref = state_clone.borrow_mut();
+        state_ref.toggle_pause();
+        glib::Propagation::Stop
+    });
+    controller.add_shortcut(pause_shortcut);
+
+    // Ctrl+Q - 退出
+    let quit_action = ShortcutAction::from_name("quit");
+    let quit_trigger = ShortcutTrigger::parse_string("<Control>q");
+    let quit_shortcut = gtk4::Shortcut::builder()
+        .trigger(quit_trigger)
+        .action(quit_action)
+        .build();
+    
+    let window_clone = window.clone();
+    quit_shortcut.connect_activate(move |_, _| {
+        window_clone.close();
+        glib::Propagation::Stop
+    });
+    controller.add_shortcut(quit_shortcut);
+
+    window.add_controller(controller);
 }
 
 fn refresh_logs(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
@@ -270,14 +329,82 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
     toolbar.append(&pause_btn);
 
     let window_clone = window.clone();
+    let state_clone = state.clone();
     source_combo.connect_selected_notify(move |combo| {
         let idx = combo.selected();
+        let state_ref = state_clone.clone();
+        let window_ref = window_clone.clone();
+        
         match idx {
-            0 => { /* dmesg */ }
-            1 => { /* journalctl */ }
-            2 => { /* File */ }
-            3 => { /* SSH */ }
+            0 => {
+                // dmesg
+                let mut state = state_ref.borrow_mut();
+                if let Err(e) = state.start_command_source("dmesg", &["-w", "--time-format=iso"]) {
+                    crate::ui::dialogs::show_error_dialog(&window_ref, "Failed to start dmesg", &e.to_string());
+                }
+            }
+            1 => {
+                // journalctl
+                let mut state = state_ref.borrow_mut();
+                if let Err(e) = state.start_command_source("journalctl", &["-f", "-o", "short-iso"]) {
+                    crate::ui::dialogs::show_error_dialog(&window_ref, "Failed to start journalctl", &e.to_string());
+                }
+            }
+            2 => {
+                // File
+                let state_ref2 = state_ref.clone();
+                let window_ref2 = window_ref.clone();
+                crate::ui::dialogs::show_file_dialog(&window_ref, move |path| {
+                    let mut state = state_ref2.borrow_mut();
+                    if let Err(e) = state.start_file_watch_source(path) {
+                        crate::ui::dialogs::show_error_dialog(&window_ref2, "Failed to open file", &e.to_string());
+                    }
+                });
+            }
+            3 => {
+                // SSH
+                let state_ref2 = state_ref.clone();
+                let window_ref2 = window_ref.clone();
+                crate::ui::dialogs::show_ssh_dialog(&window_ref, move |config| {
+                    let server_config = crate::config::SshServerConfig::from(config);
+                    let mut state = state_ref2.borrow_mut();
+                    if let Err(e) = state.start_ssh_source(server_config, "journalctl -f -o short-iso") {
+                        crate::ui::dialogs::show_error_dialog(&window_ref2, "Failed to connect SSH", &e.to_string());
+                    }
+                });
+            }
             _ => {}
+        }
+    });
+
+    let state_clone = state.clone();
+    level_combo.connect_selected_notify(move |combo| {
+        let idx = combo.selected();
+        let min_level = match idx {
+            0 => crate::log::LogLevel::Verbose,
+            1 => crate::log::LogLevel::Debug,
+            2 => crate::log::LogLevel::Info,
+            3 => crate::log::LogLevel::Warn,
+            4 => crate::log::LogLevel::Error,
+            5 => crate::log::LogLevel::Fatal,
+            _ => crate::log::LogLevel::Verbose,
+        };
+        
+        let mut state_ref = state_clone.borrow_mut();
+        state_ref.filter.set_min_level(min_level);
+        
+        // 重新过滤并刷新显示
+        state_ref.filtered_entries.clear();
+        for entry in &state_ref.log_entries {
+            if state_ref.filter.matches(entry) {
+                state_ref.filtered_entries.push(entry.clone());
+            }
+        }
+        state_ref.filtered_count = state_ref.filtered_entries.len();
+        
+        // 刷新日志视图
+        if let Some(ref mut window) = state_ref.main_window {
+            window.refresh_filtered_logs(&state_ref.filtered_entries);
         }
     });
 
