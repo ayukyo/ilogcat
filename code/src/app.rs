@@ -1,5 +1,6 @@
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Box, ScrolledWindow, TextView, Statusbar, Label, Separator, Orientation, Button, SearchEntry};
+use glib;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,7 +12,6 @@ use crate::log::remote::SshSource;
 use crate::filter::Filter;
 use crate::config::Config;
 use crate::ui::window::MainWindow;
-use crate::ui::dialogs::{show_ssh_dialog, show_file_dialog, show_error_dialog};
 use crate::config::SshServerConfig;
 use std::path::PathBuf;
 
@@ -19,7 +19,7 @@ use std::path::PathBuf;
 pub struct AppState {
     pub config: Config,
     pub main_window: Option<MainWindow>,
-    pub current_source: Option<Box<dyn LogSource>>,
+    pub current_source: Option<Box<dyn LogSource + Send>>,
     pub is_paused: Arc<AtomicBool>,
     pub filter: Filter,
     pub log_entries: Vec<LogEntry>,
@@ -82,6 +82,10 @@ impl AppState {
         }
         self.current_source = None;
     }
+    
+    pub fn is_source_running(&self) -> bool {
+        self.current_source.as_ref().map(|s| s.is_running()).unwrap_or(false)
+    }
 
     pub fn start_command_source(&mut self, command: &str, args: &[&str]) -> anyhow::Result<()> {
         self.stop_current_source();
@@ -95,7 +99,7 @@ impl AppState {
         }
         
         source.start()?;
-        self.current_source = Some(Box::new(source));
+        self.current_source = Some(Box::new(source) as Box<dyn LogSource + Send>);
         Ok(())
     }
 
@@ -104,7 +108,7 @@ impl AppState {
         
         let mut source = FileWatchSource::new(path);
         source.start()?;
-        self.current_source = Some(Box::new(source));
+        self.current_source = Some(Box::new(source) as Box<dyn LogSource + Send>);
         Ok(())
     }
 
@@ -113,7 +117,7 @@ impl AppState {
         
         let mut source = SshSource::new(config, command.to_string());
         source.start()?;
-        self.current_source = Some(Box::new(source));
+        self.current_source = Some(Box::new(source) as Box<dyn LogSource + Send>);
         Ok(())
     }
 }
@@ -190,7 +194,7 @@ fn refresh_logs(state: Rc<RefCell<AppState>>) {
     let mut state_ref = state.borrow_mut();
     
     if state_ref.is_paused.load(Ordering::SeqCst) {
-        return;
+        return glib::ControlFlow::Continue;
     }
 
     if let Some(ref mut source) = state_ref.current_source {
@@ -198,6 +202,8 @@ fn refresh_logs(state: Rc<RefCell<AppState>>) {
             state_ref.append_log_entry(entry);
         }
     }
+    
+    glib::ControlFlow::Continue
 }
 
 fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> Box {

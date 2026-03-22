@@ -84,3 +84,22 @@ pub trait LogSource: Send {
     /// 是否正在运行
     fn is_running(&self) -> bool;
 }
+
+/// 为 Box<dyn LogSource + Send> 实现 LogSource trait，使其可以作为 trait 对象使用
+impl LogSource for Box<dyn LogSource + Send> {
+    fn start(&mut self) -> anyhow::Result<()> {
+        (**self).start()
+    }
+    
+    fn stop(&mut self) -> anyhow::Result<()> {
+        (**self).stop()
+    }
+    
+    fn try_recv(&mut self) -> Option<LogEntry> {
+        (**self).try_recv()
+    }
+    
+    fn is_running(&self) -> bool {
+        (**self).is_running()
+    }
+}

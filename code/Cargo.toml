@@ -7,6 +7,7 @@ description = "A logcat-like log viewer for Linux, inspired by Android Studio Lo
 
 [dependencies]
 gtk4 = "0.7"
+glib = "0.18"
 ssh2 = "0.9"
 regex = "1.10"
 tokio = { version = "1.35", features = ["full"] }
