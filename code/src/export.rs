@@ -229,3 +229,5 @@ mod tests {
         let line2 = "[2024-03-20 10:30:45] [ERROR] Something went wrong";
         let result2 = manager.parse_log_line(line2);
         assert!(result2.is_some());
+    }
+}
