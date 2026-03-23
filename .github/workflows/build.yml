@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-debug:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Build Debug
 
     steps:
@@ -51,7 +51,7 @@ jobs:
           retention-days: 7
 
   build-release:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Build Release
     needs: build-debug
 
@@ -85,6 +85,46 @@ jobs:
       - name: Strip binary
         working-directory: code
         run: strip target/release/ilogcat
+
+      - name: Build AppImage
+        working-directory: code
+        run: |
+          # Download appimagetool
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          
+          # Create AppDir structure
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          
+          # Copy binary
+          cp target/release/ilogcat AppDir/usr/bin/
+          
+          # Create desktop entry
+          cat > AppDir/usr/share/applications/ilogcat.desktop << 'EOF'
+          [Desktop Entry]
+          Name=iLogCat
+          Comment=Linux Log Viewer
+          Exec=ilogcat
+          Icon=ilogcat
+          Terminal=false
+          Type=Application
+          Categories=System;Monitor;
+          EOF
+          
+          # Copy icon
+          cp assets/ilogcat.svg AppDir/usr/share/icons/hicolor/256x256/apps/ilogcat.svg 2>/dev/null || true
+          
+          # Create AppRun
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          exec "$APPDIR/usr/bin/ilogcat" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          
+          # Build AppImage
+          ./appimagetool-x86_64.AppImage AppDir ilogcat-x86_64.AppImage || true
 
       - name: Create release package
         working-directory: code
@@ -165,7 +205,7 @@ jobs:
           retention-days: 30
 
   create-release:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Create GitHub Release
     needs: build-release
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
