@@ -207,9 +207,11 @@ jobs:
             ilogcat
             ```
           files: |
-            release/artifacts/ilogcat
-            release/artifacts/ilogcat_0.1.0_amd64.deb
+            release/ilogcat
+            release/ilogcat_0.1.0_amd64.deb
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          permissions:
+            contents: write
