@@ -37,7 +37,6 @@ impl BookmarkManager {
         let bookmark_tag = TextTag::new(Some("bookmark"));
         bookmark_tag.set_background(Some("#FFD700"));
         bookmark_tag.set_foreground(Some("#000000"));
-        bookmark_tag.set_weight(gtk4::pango::Weight::Bold.value());
 
         tag_table.add(&bookmark_tag);
         self.tag = Some(bookmark_tag);
