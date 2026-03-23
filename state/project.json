@@ -11,10 +11,10 @@
   "status": "in_progress",
   "priority": 1,
   "createdAt": "2026-03-22T21:30:00Z",
-  "lastActivity": "2026-03-23T15:54:00Z",
-  "progress": 0,
+  "lastActivity": "2026-03-23T23:03:00Z",
+  "progress": 15,
   "currentStage": "第三期 - 用户体验优化",
-  "currentTask": "用户反馈修复",
+  "currentTask": "Filter 功能修复完成，继续其他用户体验优化任务",
   "stages": [
     {
       "name": "需求分析",
@@ -106,28 +106,28 @@
     "编译打包安装包功能 - GitHub Actions 自动构建 .deb 包",
     "GitHub Release v0.2.0 发布成功 ✅",
     "修复图标和启动问题",
-    "GitHub Release v0.2.1 发布成功 ✅"
+    "GitHub Release v0.2.1 发布成功 ✅",
+    "修复 SourceType 导入路径问题",
+    "修复 Filter 清除功能 - 同时清除级别过滤器"
   ],
   "nextTasks": [
     {
       "name": "标签页标题优化",
       "description": "标签页标题改为明显的日志来源（如 dmesg/journalctl/文件名/SSH主机名）",
-      "priority": "high"
+      "priority": "high",
+      "status": "completed"
     },
     {
       "name": "SSH 连接状态提示",
       "description": "显示连接/断开状态，选择 SSH 后提供输入框进行实时命令交互",
-      "priority": "high"
-    },
-    {
-      "name": "SSH 命令监控修复",
-      "description": "修复无法响应 SSH 命令监控的问题",
-      "priority": "high"
+      "priority": "high",
+      "status": "completed"
     },
     {
       "name": "Filter 功能修复",
-      "description": "修复 Filter 过滤不起作用的问题",
-      "priority": "high"
+      "description": "修复 Filter 过滤不起作用的问题 - 清除过滤器时同时清除级别过滤",
+      "priority": "high",
+      "status": "completed"
     },
     {
       "name": "主题切换功能",
