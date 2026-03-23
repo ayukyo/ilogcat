@@ -12,7 +12,8 @@ use crate::log::{LogSource, LogEntry, LogLevel, CommandSource, FileWatchSource};
 use crate::log::remote::SshSource;
 use crate::filter::Filter;
 use crate::config::Config;
-use crate::ui::tabs::{TabManager, LogTab, SourceType};
+use crate::ui::tabs::{TabManager, LogTab};
+use crate::ui::TabSourceType as SourceType;
 use crate::config::SshServerConfig;
 
 /// 应用状态（支持多标签页）
