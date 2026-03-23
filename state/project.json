@@ -8,13 +8,13 @@
     "gui": "GTK4",
     "build": "Cargo"
   },
-  "status": "completed",
+  "status": "in_progress",
   "priority": 1,
   "createdAt": "2026-03-22T21:30:00Z",
   "lastActivity": "2026-03-23T15:54:00Z",
-  "progress": 100,
-  "currentStage": "第二期 - 功能增强完成 ✅",
-  "currentTask": "GitHub Release v0.2.1 已发布 - 项目阶段性完成",
+  "progress": 0,
+  "currentStage": "第三期 - 用户体验优化",
+  "currentTask": "用户反馈修复",
   "stages": [
     {
       "name": "需求分析",
@@ -60,6 +60,11 @@
       "name": "第二期 - 功能增强",
       "status": "completed",
       "progress": 100
+    },
+    {
+      "name": "第三期 - 用户体验优化",
+      "status": "in_progress",
+      "progress": 0
     }
   ],
   "completedTasks": [
@@ -105,9 +110,24 @@
   ],
   "nextTasks": [
     {
-      "name": "等待用户决策",
-      "description": "第二期功能增强已完成，等待用户决定是否继续第三期开发或项目收尾",
-      "priority": "low"
+      "name": "标签页标题优化",
+      "description": "标签页标题改为明显的日志来源（如 dmesg/journalctl/文件名/SSH主机名）",
+      "priority": "high"
+    },
+    {
+      "name": "SSH 连接状态提示",
+      "description": "显示连接/断开状态，选择 SSH 后提供输入框进行实时命令交互",
+      "priority": "high"
+    },
+    {
+      "name": "SSH 命令监控修复",
+      "description": "修复无法响应 SSH 命令监控的问题",
+      "priority": "high"
+    },
+    {
+      "name": "Filter 功能修复",
+      "description": "修复 Filter 过滤不起作用的问题",
+      "priority": "high"
     }
   ],
   "deliverables": {
