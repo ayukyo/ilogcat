@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Notebook, Label, Box, Orientation, Button, ScrolledWindow, TextView, TextBuffer};
+use gtk4::{Notebook, Label, Orientation, Button, ScrolledWindow, TextView, TextBuffer};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,7 +15,7 @@ pub struct LogTab {
     pub log_entries: Vec<LogEntry>,
     pub filtered_entries: Vec<LogEntry>,
     pub filter: Filter,
-    pub current_source: Option<Box<dyn LogSource>>,
+    pub current_source: Option<std::boxed::Box<dyn LogSource>>,
     pub is_paused: Arc<AtomicBool>,
     pub log_count: usize,
     pub filtered_count: usize,
@@ -178,7 +178,7 @@ impl LogTab {
     }
 
     /// 设置日志源
-    pub fn set_source(&mut self, source: Box<dyn LogSource>) {
+    pub fn set_source(&mut self, source: std::boxed::Box<dyn LogSource>) {
         self.stop_source();
         self.current_source = Some(source);
     }
@@ -335,4 +335,4 @@ impl TabManager {
     pub fn notebook(&self) -> &Notebook {
         &self.notebook
     }
-};
+}

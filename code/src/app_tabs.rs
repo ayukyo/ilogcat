@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box, Notebook, Statusbar, Label, Separator, Orientation, Button, SearchEntry};
+use gtk4::{Application, ApplicationWindow, Notebook, Statusbar, Label, Separator, Orientation, Button, SearchEntry};
 use gtk4::gdk::ModifierType;
 use glib;
 use std::cell::RefCell;
@@ -14,7 +14,6 @@ use crate::filter::Filter;
 use crate::config::Config;
 use crate::ui::tabs::{TabManager, LogTab};
 use crate::config::SshServerConfig;
-use std::path::PathBuf;
 
 /// 应用状态（支持多标签页）
 pub struct AppState {
@@ -39,7 +38,7 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
         .default_height(800)
         .build();
 
-    let vbox = Box::builder()
+    let vbox = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
         .spacing(6)
         .margin_top(6)
@@ -291,7 +290,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
                 if let Err(e) = source.start() {
                     crate::ui::dialogs::show_error_dialog(&window_ref, "Failed to Start dmesg", &e.to_string());
                 } else {
-                    tab.borrow_mut().set_source(Box::new(source));
+                    tab.borrow_mut().set_source(std::boxed::Box::new(source));
                 }
             }
             1 => {
@@ -304,7 +303,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
                 if let Err(e) = source.start() {
                     crate::ui::dialogs::show_error_dialog(&window_ref, "Failed to Start journalctl", &e.to_string());
                 } else {
-                    tab.borrow_mut().set_source(Box::new(source));
+                    tab.borrow_mut().set_source(std::boxed::Box::new(source));
                 }
             }
             2 => {
@@ -316,7 +315,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
                     if let Err(e) = source.start() {
                         eprintln!("Failed to start file watch: {}", e);
                     } else {
-                        tab_ref.borrow_mut().set_source(Box::new(source));
+                        tab_ref.borrow_mut().set_source(std::boxed::Box::new(source));
                     }
                 });
             }
@@ -341,7 +340,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
                     if let Err(e) = source.start() {
                         eprintln!("Failed to start SSH source: {}", e);
                     } else {
-                        tab_ref.borrow_mut().set_source(Box::new(source));
+                        tab_ref.borrow_mut().set_source(std::boxed::Box::new(source));
                     }
                 });
             }
@@ -397,8 +396,8 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
     toolbar
 }
 
-fn create_filter_bar(_state: Rc<RefCell<AppState>>) -> Box {
-    let filter_bar = Box::builder()
+fn create_filter_bar(_state: Rc<RefCell<AppState>>) -> gtk4::Box {
+    let filter_bar = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(6)
         .build();
