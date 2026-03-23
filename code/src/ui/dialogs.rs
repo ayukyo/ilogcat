@@ -523,3 +523,80 @@ pub fn show_ssh_command_dialog<F>(
 
     dialog.present();
 }
+
+/// 显示主题设置对话框
+pub fn show_theme_dialog<F>(
+    parent: &ApplicationWindow,
+    current_theme: &str,
+    on_save: F,
+) where
+    F: Fn(String) + 'static,
+{
+    let dialog = Dialog::builder()
+        .title("Theme Settings")
+        .transient_for(parent)
+        .modal(true)
+        .default_width(300)
+        .build();
+
+    let content = dialog.content_area();
+    content.set_spacing(12);
+    content.set_margin_top(12);
+    content.set_margin_bottom(12);
+    content.set_margin_start(12);
+    content.set_margin_end(12);
+
+    // 说明标签
+    let info_label = Label::builder()
+        .label("Select application theme:")
+        .wrap(true)
+        .xalign(0.0)
+        .build();
+    content.append(&info_label);
+
+    // 主题选择
+    let theme_box = Box::new(Orientation::Vertical, 12);
+    
+    // Light theme option
+    let light_radio = gtk4::CheckButton::builder()
+        .label("Light Theme")
+        .build();
+    
+    // Dark theme option
+    let dark_radio = gtk4::CheckButton::builder()
+        .label("Dark Theme")
+        .group(&light_radio)
+        .build();
+    
+    // 设置当前选中状态
+    if current_theme == "dark" {
+        dark_radio.set_active(true);
+    } else {
+        light_radio.set_active(true);
+    }
+    
+    theme_box.append(&light_radio);
+    theme_box.append(&dark_radio);
+    content.append(&theme_box);
+
+    // 按钮
+    dialog.add_button("Cancel", ResponseType::Cancel);
+    dialog.add_button("Save", ResponseType::Accept);
+
+    let light_radio_clone = light_radio.clone();
+    let dark_radio_clone = dark_radio.clone();
+
+    dialog.connect_response(move |dialog, response| {
+        if response == ResponseType::Accept {
+            let theme = if dark_radio_clone.is_active() {
+                "dark".to_string()
+            } else {
+                "light".to_string()
+            };
+            on_save(theme);
+        }
+        dialog.close();
+    });
+
+    dialog.present();
+}

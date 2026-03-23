@@ -11,10 +11,10 @@
   "status": "in_progress",
   "priority": 1,
   "createdAt": "2026-03-22T21:30:00Z",
-  "lastActivity": "2026-03-23T23:03:00Z",
-  "progress": 15,
+  "lastActivity": "2026-03-24T00:32:00Z",
+  "progress": 25,
   "currentStage": "第三期 - 用户体验优化",
-  "currentTask": "Filter 功能修复完成，继续其他用户体验优化任务",
+  "currentTask": "主题切换功能完成，继续多语言支持开发",
   "stages": [
     {
       "name": "需求分析",
@@ -108,7 +108,8 @@
     "修复图标和启动问题",
     "GitHub Release v0.2.1 发布成功 ✅",
     "修复 SourceType 导入路径问题",
-    "修复 Filter 清除功能 - 同时清除级别过滤器"
+    "修复 Filter 清除功能 - 同时清除级别过滤器",
+    "实现主题切换功能 - 设置对话框中添加主题选项"
   ],
   "nextTasks": [
     {
@@ -132,7 +133,8 @@
     {
       "name": "主题切换功能",
       "description": "设置中增加黑白主题切换（亮色/暗色模式）",
-      "priority": "medium"
+      "priority": "medium",
+      "status": "completed"
     },
     {
       "name": "多语言支持",

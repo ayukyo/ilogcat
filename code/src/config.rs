@@ -184,6 +184,23 @@ impl Default for UiConfig {
     }
 }
 
+impl UiConfig {
+    /// 设置主题
+    pub fn set_theme(&mut self, theme: &str) {
+        self.theme = theme.to_string();
+    }
+    
+    /// 检查是否为暗色主题
+    pub fn is_dark_theme(&self) -> bool {
+        self.theme == "dark"
+    }
+    
+    /// 获取当前主题
+    pub fn current_theme(&self) -> &str {
+        &self.theme
+    }
+}
+
 impl Default for ColorConfig {
     fn default() -> Self {
         Self {

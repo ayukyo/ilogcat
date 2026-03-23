@@ -506,6 +506,18 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         content.set_margin_start(12);
         content.set_margin_end(12);
         
+        // 主题设置按钮
+        let theme_btn = Button::builder()
+            .label("Theme")
+            .tooltip_text("Change application theme (Light/Dark)")
+            .hexpand(true)
+            .build();
+        content.append(&theme_btn);
+        
+        // 分隔线
+        let sep = Separator::new(Orientation::Horizontal);
+        content.append(&sep);
+        
         // 导出按钮
         let export_btn = Button::builder()
             .label("Export Settings")
@@ -524,6 +536,30 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         
         // 关闭按钮
         dialog.add_button("Close", gtk4::ResponseType::Close);
+        
+        // 主题设置按钮事件
+        let state_ref = state_clone.clone();
+        let window_ref = window_clone.clone();
+        theme_btn.connect_clicked(move |_| {
+            let state_ref = state_ref.clone();
+            let window_ref = window_ref.clone();
+            let current_theme = state_ref.borrow().config.ui.current_theme().to_string();
+            
+            crate::ui::dialogs::show_theme_dialog(&window_ref, &current_theme, move |theme| {
+                let mut state = state_ref.borrow_mut();
+                state.config.ui.set_theme(&theme);
+                
+                // 保存配置
+                if let Err(e) = state.config.save() {
+                    crate::ui::dialogs::show_error_dialog(&window_ref, "Save Failed", 
+                        &format!("Failed to save theme setting:\n{}", e));
+                } else {
+                    let theme_name = if theme == "dark" { "Dark" } else { "Light" };
+                    crate::ui::dialogs::show_info_dialog(&window_ref, "Theme Changed", 
+                        &format!("Theme set to {}.\nPlease restart the application to apply the changes.", theme_name));
+                }
+            });
+        });
         
         // 导出按钮事件
         let state_ref = state_clone.clone();
