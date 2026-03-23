@@ -54,6 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build Release
     needs: build-debug
+    if: always() && (needs.build-debug.result == 'success' || needs.build-debug.result == 'skipped')
     container:
       image: ubuntu:22.04
       options: --privileged
