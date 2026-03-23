@@ -1,5 +1,6 @@
 use regex::Regex;
 use chrono::{DateTime, Local, NaiveTime, Timelike, Datelike};
+use std::collections::HashMap;
 use crate::log::{LogEntry, LogLevel, LogSourceInfo};
 
 /// 日志行解析器
@@ -15,10 +16,18 @@ pub struct LogParser {
     /// syslog 格式
     /// 例如: Oct 22 14:30:45 hostname app[1234]: message
     syslog_pattern: Regex,
+    
+    /// 自定义级别关键字映射
+    custom_keywords: HashMap<String, String>,
 }
 
 impl LogParser {
     pub fn new() -> Self {
+        Self::with_keywords(HashMap::new())
+    }
+    
+    /// 使用自定义关键字创建解析器
+    pub fn with_keywords(custom_keywords: HashMap<String, String>) -> Self {
         Self {
             logcat_pattern: Regex::new(
                 r"(?m)^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+([VDIWEF])/([^\(]+?)\(\s*(\d+)\):\s*(.*)$"
@@ -31,7 +40,14 @@ impl LogParser {
             syslog_pattern: Regex::new(
                 r"(?m)^(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(\S+)\s+(\S+?)(?:\[(\d+)\])?:\s*(.*)$"
             ).unwrap(),
+            
+            custom_keywords,
         }
+    }
+    
+    /// 更新自定义关键字
+    pub fn set_custom_keywords(&mut self, keywords: HashMap<String, String>) {
+        self.custom_keywords = keywords;
     }
     
     /// 解析单行日志
@@ -94,10 +110,12 @@ impl LogParser {
             });
         }
         
-        // 无法解析，作为原始行处理
+        // 无法解析，检查是否包含自定义级别关键字
+        let level = self.detect_custom_level(line).unwrap_or(LogLevel::Info);
+        
         Some(LogEntry {
             timestamp: Local::now(),
-            level: LogLevel::Info,
+            level,
             tag: String::new(),
             pid: None,
             message: line.to_string(),
@@ -140,7 +158,24 @@ impl LogParser {
     }
     
     fn parse_level_str(&self, level_str: &str) -> LogLevel {
-        match level_str.to_uppercase().as_str() {
+        let upper = level_str.to_uppercase();
+        
+        // 首先检查自定义关键字
+        let lower = level_str.to_lowercase();
+        if let Some(level) = self.custom_keywords.get(&lower) {
+            return match level.as_str() {
+                "verbose" => LogLevel::Verbose,
+                "debug" => LogLevel::Debug,
+                "info" => LogLevel::Info,
+                "warn" => LogLevel::Warn,
+                "error" => LogLevel::Error,
+                "fatal" => LogLevel::Fatal,
+                _ => LogLevel::Info,
+            };
+        }
+        
+        // 标准级别解析
+        match upper.as_str() {
             "V" | "VERBOSE" => LogLevel::Verbose,
             "D" | "DEBUG" => LogLevel::Debug,
             "I" | "INFO" => LogLevel::Info,
@@ -150,9 +185,34 @@ impl LogParser {
             _ => LogLevel::Info,
         }
     }
+    
+    /// 检测行中是否包含自定义级别关键字
+    fn detect_custom_level(&self, line: &str) -> Option<LogLevel> {
+        let lower_line = line.to_lowercase();
+        
+        for (keyword, level) in &self.custom_keywords {
+            if lower_line.contains(keyword) {
+                return match level.as_str() {
+                    "verbose" => Some(LogLevel::Verbose),
+                    "debug" => Some(LogLevel::Debug),
+                    "info" => Some(LogLevel::Info),
+                    "warn" => Some(LogLevel::Warn),
+                    "error" => Some(LogLevel::Error),
+                    "fatal" => Some(LogLevel::Fatal),
+                    _ => None,
+                };
+            }
+        }
+        None
+    }
 }
 
-/// 便捷函数
+/// 便捷函数 - 使用默认解析器
 pub fn parse_log_line(line: &str, source: LogSourceInfo) -> Option<LogEntry> {
     LogParser::new().parse_line(line, source)
+}
+
+/// 便捷函数 - 使用自定义关键字
+pub fn parse_log_line_with_keywords(line: &str, source: LogSourceInfo, keywords: std::collections::HashMap<String, String>) -> Option<LogEntry> {
+    LogParser::with_keywords(keywords).parse_line(line, source)
 }

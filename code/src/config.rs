@@ -14,6 +14,8 @@ pub struct Config {
     #[serde(default)]
     pub colors: ColorConfig,
     #[serde(default)]
+    pub custom_level_keywords: CustomLevelKeywords,
+    #[serde(default)]
     pub ssh_servers: Vec<SshServerConfig>,
     #[serde(default)]
     pub saved_filters: Vec<SavedFilter>,
@@ -51,6 +53,61 @@ pub struct ColorConfig {
     pub error: String,
     #[serde(default = "default_color_fatal")]
     pub fatal: String,
+}
+
+/// 自定义日志级别关键字配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomLevelKeywords {
+    #[serde(default = "default_verbose_keywords")]
+    pub verbose: Vec<String>,
+    #[serde(default = "default_debug_keywords")]
+    pub debug: Vec<String>,
+    #[serde(default = "default_info_keywords")]
+    pub info: Vec<String>,
+    #[serde(default = "default_warn_keywords")]
+    pub warn: Vec<String>,
+    #[serde(default = "default_error_keywords")]
+    pub error: Vec<String>,
+    #[serde(default = "default_fatal_keywords")]
+    pub fatal: Vec<String>,
+}
+
+impl Default for CustomLevelKeywords {
+    fn default() -> Self {
+        Self {
+            verbose: default_verbose_keywords(),
+            debug: default_debug_keywords(),
+            info: default_info_keywords(),
+            warn: default_warn_keywords(),
+            error: default_error_keywords(),
+            fatal: default_fatal_keywords(),
+        }
+    }
+}
+
+// 默认自定义关键字
+fn default_verbose_keywords() -> Vec<String> {
+    vec!["[v]".to_string(), "[verbose]".to_string()]
+}
+
+fn default_debug_keywords() -> Vec<String> {
+    vec!["[d]".to_string(), "[debug]".to_string()]
+}
+
+fn default_info_keywords() -> Vec<String> {
+    vec!["[i]".to_string(), "[info]".to_string()]
+}
+
+fn default_warn_keywords() -> Vec<String> {
+    vec!["[w]".to_string(), "[warn]".to_string(), "[warning]".to_string()]
+}
+
+fn default_error_keywords() -> Vec<String> {
+    vec!["[e]".to_string(), "[error]".to_string()]
+}
+
+fn default_fatal_keywords() -> Vec<String> {
+    vec!["[f]".to_string(), "[fatal]".to_string()]
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,6 +203,7 @@ impl Default for Config {
             general: GeneralConfig::default(),
             ui: UiConfig::default(),
             colors: ColorConfig::default(),
+            custom_level_keywords: CustomLevelKeywords::default(),
             ssh_servers: Vec::new(),
             saved_filters: Vec::new(),
         }
@@ -192,6 +250,46 @@ impl Config {
         }
         // 自动保存配置
         let _ = self.save();
+    }
+
+    /// 更新自定义级别关键字
+    pub fn update_custom_keywords(&mut self, level: &str, keywords: Vec<String>) {
+        match level {
+            "verbose" => self.custom_level_keywords.verbose = keywords,
+            "debug" => self.custom_level_keywords.debug = keywords,
+            "info" => self.custom_level_keywords.info = keywords,
+            "warn" => self.custom_level_keywords.warn = keywords,
+            "error" => self.custom_level_keywords.error = keywords,
+            "fatal" => self.custom_level_keywords.fatal = keywords,
+            _ => {}
+        }
+        let _ = self.save();
+    }
+
+    /// 获取所有自定义关键字（用于日志解析）
+    pub fn get_all_custom_keywords(&self) -> std::collections::HashMap<String, String> {
+        let mut map = std::collections::HashMap::new();
+        
+        for kw in &self.custom_level_keywords.verbose {
+            map.insert(kw.to_lowercase(), "verbose".to_string());
+        }
+        for kw in &self.custom_level_keywords.debug {
+            map.insert(kw.to_lowercase(), "debug".to_string());
+        }
+        for kw in &self.custom_level_keywords.info {
+            map.insert(kw.to_lowercase(), "info".to_string());
+        }
+        for kw in &self.custom_level_keywords.warn {
+            map.insert(kw.to_lowercase(), "warn".to_string());
+        }
+        for kw in &self.custom_level_keywords.error {
+            map.insert(kw.to_lowercase(), "error".to_string());
+        }
+        for kw in &self.custom_level_keywords.fatal {
+            map.insert(kw.to_lowercase(), "fatal".to_string());
+        }
+        
+        map
     }
 
     /// 加载配置

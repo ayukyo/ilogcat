@@ -1,8 +1,10 @@
 use gtk4::prelude::*;
-use gtk4::{ApplicationWindow, Dialog, Entry, PasswordEntry, Label, Box, Button, Orientation, FileChooserDialog, FileChooserAction, ResponseType};
+use gtk4::{ApplicationWindow, Dialog, Entry, PasswordEntry, Label, Box, Button, Orientation, FileChooserDialog, FileChooserAction, ResponseType, ScrolledWindow, ListBox, ListBoxRow};
 use std::path::PathBuf;
+use std::collections::HashMap;
 
 use crate::ssh::config::{SshConfig, AuthMethod};
+use crate::config::CustomLevelKeywords;
 
 /// 显示 SSH 连接对话框
 pub fn show_ssh_dialog<F>(parent: &ApplicationWindow, on_connect: F)
@@ -213,6 +215,118 @@ where
     dialog.connect_response(move |dialog, response| {
         if response == ResponseType::Yes {
             on_confirm();
+        }
+        dialog.close();
+    });
+
+    dialog.present();
+}
+
+/// 显示自定义级别关键字设置对话框
+pub fn show_custom_keywords_dialog<F>(
+    parent: &ApplicationWindow,
+    current_keywords: CustomLevelKeywords,
+    on_save: F,
+) where
+    F: Fn(CustomLevelKeywords) + 'static,
+{
+    let dialog = Dialog::builder()
+        .title("Custom Level Keywords")
+        .transient_for(parent)
+        .modal(true)
+        .default_width(500)
+        .default_height(400)
+        .build();
+
+    let content = dialog.content_area();
+    content.set_spacing(12);
+    content.set_margin_top(12);
+    content.set_margin_bottom(12);
+    content.set_margin_start(12);
+    content.set_margin_end(12);
+
+    // 说明标签
+    let info_label = Label::builder()
+        .label("Define custom keywords to detect log levels.\nKeywords are case-insensitive.")
+        .wrap(true)
+        .xalign(0.0)
+        .build();
+    content.append(&info_label);
+
+    // 创建滚动区域
+    let scrolled = ScrolledWindow::builder()
+        .vexpand(true)
+        .hscrollbar_policy(gtk4::PolicyType::Never)
+        .build();
+    content.append(&scrolled);
+
+    // 主容器
+    let main_box = Box::new(Orientation::Vertical, 12);
+    scrolled.set_child(Some(&main_box));
+
+    // 级别配置
+    let levels = vec![
+        ("Verbose", current_keywords.verbose.clone()),
+        ("Debug", current_keywords.debug.clone()),
+        ("Info", current_keywords.info.clone()),
+        ("Warn", current_keywords.warn.clone()),
+        ("Error", current_keywords.error.clone()),
+        ("Fatal", current_keywords.fatal.clone()),
+    ];
+
+    let mut level_entries: Vec<(String, Entry)> = Vec::new();
+
+    for (level_name, keywords) in levels {
+        let level_box = Box::new(Orientation::Horizontal, 6);
+        
+        let label = Label::builder()
+            .label(&format!("{}:", level_name))
+            .width_chars(10)
+            .xalign(0.0)
+            .build();
+        level_box.append(&label);
+
+        let entry = Entry::builder()
+            .text(&keywords.join(", "))
+            .placeholder_text("e.g., [v], [verbose]")
+            .hexpand(true)
+            .build();
+        level_box.append(&entry);
+
+        level_entries.push((level_name.to_lowercase(), entry));
+        main_box.append(&level_box);
+    }
+
+    // 按钮
+    dialog.add_button("Cancel", ResponseType::Cancel);
+    dialog.add_button("Save", ResponseType::Accept);
+
+    let dialog_clone = dialog.clone();
+
+    dialog.connect_response(move |dialog, response| {
+        if response == ResponseType::Accept {
+            let mut new_keywords = CustomLevelKeywords::default();
+            
+            for (level, entry) in &level_entries {
+                let text = entry.text().to_string();
+                let keywords: Vec<String> = text
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                
+                match level.as_str() {
+                    "verbose" => new_keywords.verbose = keywords,
+                    "debug" => new_keywords.debug = keywords,
+                    "info" => new_keywords.info = keywords,
+                    "warn" => new_keywords.warn = keywords,
+                    "error" => new_keywords.error = keywords,
+                    "fatal" => new_keywords.fatal = keywords,
+                    _ => {}
+                }
+            }
+            
+            on_save(new_keywords);
         }
         dialog.close();
     });

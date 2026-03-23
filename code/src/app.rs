@@ -311,6 +311,12 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
         .build();
     toolbar.append(&pause_btn);
 
+    let settings_btn = Button::builder()
+        .label("Settings")
+        .tooltip_text("Configure custom level keywords")
+        .build();
+    toolbar.append(&settings_btn);
+
     let state_clone = state.clone();
     let window_clone = window.clone();
     source_combo.connect_selected_notify(move |combo| {
@@ -425,6 +431,30 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
         state_ref.toggle_pause();
         let paused = state_ref.is_paused.load(Ordering::SeqCst);
         pause_btn_clone.set_label(if paused { "Resume" } else { "Pause" });
+    });
+
+    // 设置按钮点击事件
+    let state_clone = state.clone();
+    let window_clone = window.clone();
+    settings_btn.connect_clicked(move |_| {
+        let state_ref = state_clone.clone();
+        let window_ref = window_clone.clone();
+        
+        // 获取当前自定义关键字配置
+        let custom_keywords = {
+            let state = state_ref.borrow();
+            state.config.custom_level_keywords.clone()
+        };
+        
+        crate::ui::dialogs::show_custom_keywords_dialog(&window_ref, custom_keywords, move |new_keywords| {
+            let mut state = state_ref.borrow_mut();
+            state.config.custom_level_keywords = new_keywords;
+            let _ = state.config.save();
+            
+            // 更新解析器的自定义关键字
+            // 这里可以通过消息机制通知日志源更新解析器
+            crate::ui::dialogs::show_info_dialog(&window_ref, "Settings Saved", "Custom level keywords have been updated.");
+        });
     });
 
     toolbar
