@@ -23,7 +23,7 @@ pub struct LogTab {
     pub filtered_count: usize,
     pub text_buffer: TextBuffer,
     pub text_view: TextView,
-    pub tab_label_widget: Option<gtk4::Box>,  // 保存标签页标题 widget 引用
+    pub tab_label_widget: Option<gtk4::Label>,  // 保存标签页标题文本 widget 引用
 }
 
 /// 日志源类型

@@ -512,7 +512,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                 let state_ref_clone = state_ref.clone();
                 crate::ui::dialogs::show_file_dialog(&window_ref, move |path| {
                     tab_ref.borrow_mut().clear_logs();
-                    tab_ref.borrow_mut().set_source_info(SourceType::File(path.clone()));
+                    tab_ref.borrow_mut().set_source_info(SourceType::File(path.to_string_lossy().to_string()));
                     let mut source = FileWatchSource::new(path);
                     if let Err(e) = source.start() {
                         eprintln!("Failed to start file watch: {}", e);
