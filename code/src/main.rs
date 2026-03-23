@@ -4,12 +4,13 @@ mod filter;
 mod ssh;
 mod config;
 mod app;
+mod app_tabs;
 
 use gtk4::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::app::{AppState, build_ui};
+use crate::app_tabs::{AppState, build_ui};
 
 const APP_ID: &str = "com.openclaw.ilogcat";
 
