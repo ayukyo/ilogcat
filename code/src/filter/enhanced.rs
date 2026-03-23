@@ -1,4 +1,6 @@
 use regex::Regex;
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::log::LogEntry;
 
 /// 过滤模式类型
@@ -346,9 +348,11 @@ impl FilterDialog {
         // 删除回调
         let patterns_clone = patterns.clone();
         let list_clone = list_box.clone();
+        let row_clone = row.clone();
         del_btn.connect_clicked(move |_| {
-            list_clone.remove(&row);
-            patterns_clone.borrow_mut().retain(|(_, r)| !gtk4::glib::GlibPtrDefault::is_null(&r));
+            list_clone.remove(&row_clone);
+            // 从patterns中移除对应的项
+            patterns_clone.borrow_mut().retain(|(_, r)| r != &row_clone);
         });
     }
 }
