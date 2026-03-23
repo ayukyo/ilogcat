@@ -11,10 +11,10 @@
   "status": "in_progress",
   "priority": 1,
   "createdAt": "2026-03-22T21:30:00Z",
-  "lastActivity": "2026-03-24T00:32:00Z",
-  "progress": 25,
+  "lastActivity": "2026-03-24T01:32:00Z",
+  "progress": 30,
   "currentStage": "第三期 - 用户体验优化",
-  "currentTask": "主题切换功能完成，继续多语言支持开发",
+  "currentTask": "多语言支持功能完成，继续快捷搜索功能开发",
   "stages": [
     {
       "name": "需求分析",
@@ -109,7 +109,8 @@
     "GitHub Release v0.2.1 发布成功 ✅",
     "修复 SourceType 导入路径问题",
     "修复 Filter 清除功能 - 同时清除级别过滤器",
-    "实现主题切换功能 - 设置对话框中添加主题选项"
+    "实现主题切换功能 - 设置对话框中添加主题选项",
+    "实现多语言支持功能 - 支持中英文切换"
   ],
   "nextTasks": [
     {
@@ -139,6 +140,12 @@
     {
       "name": "多语言支持",
       "description": "设置中增加中英文语言切换",
+      "priority": "medium",
+      "status": "completed"
+    },
+    {
+      "name": "快捷搜索功能",
+      "description": "支持 Ctrl+F 快速搜索日志内容，高亮显示结果",
       "priority": "medium"
     }
   ],
@@ -159,6 +166,8 @@
     "GitHub Actions 自动构建 .deb 安装包成功",
     "GitHub Release v0.2.0 发布成功，包含二进制和 .deb 包",
     "v0.2.1 修复了图标和桌面启动问题",
-    "第二期功能增强全部完成，项目阶段性完成"
+    "第二期功能增强全部完成，项目阶段性完成",
+    "第三期启动：主题切换功能已完成",
+    "多语言支持功能已完成，支持中英文切换"
   ]
 }
