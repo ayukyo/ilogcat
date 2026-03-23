@@ -153,6 +153,8 @@ jobs:
     name: Create GitHub Release
     needs: build-release
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -213,5 +215,3 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          permissions:
-            contents: write
