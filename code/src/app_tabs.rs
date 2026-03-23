@@ -514,6 +514,14 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
             .build();
         content.append(&theme_btn);
         
+        // 语言设置按钮
+        let lang_btn = Button::builder()
+            .label("Language")
+            .tooltip_text("Change application language")
+            .hexpand(true)
+            .build();
+        content.append(&lang_btn);
+        
         // 分隔线
         let sep = Separator::new(Orientation::Horizontal);
         content.append(&sep);
@@ -536,6 +544,30 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         
         // 关闭按钮
         dialog.add_button("Close", gtk4::ResponseType::Close);
+        
+        // 语言设置按钮事件
+        let state_ref = state_clone.clone();
+        let window_ref = window_clone.clone();
+        lang_btn.connect_clicked(move |_| {
+            let state_ref = state_ref.clone();
+            let window_ref = window_ref.clone();
+            let current_lang = state_ref.borrow().config.ui.language.clone();
+            
+            crate::ui::dialogs::show_language_dialog(&window_ref, &current_lang, move |lang| {
+                let mut state = state_ref.borrow_mut();
+                state.config.ui.set_language(&lang);
+                
+                // 保存配置
+                if let Err(e) = state.config.save() {
+                    crate::ui::dialogs::show_error_dialog(&window_ref, "Save Failed", 
+                        &format!("Failed to save language setting:\n{}", e));
+                } else {
+                    let lang_name = if lang == "zh" { "中文" } else { "English" };
+                    crate::ui::dialogs::show_info_dialog(&window_ref, "Language Changed", 
+                        &format!("Language set to {}.\nPlease restart the application to apply the changes.", lang_name));
+                }
+            });
+        });
         
         // 主题设置按钮事件
         let state_ref = state_clone.clone();

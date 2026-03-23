@@ -5,18 +5,24 @@ mod ssh;
 mod config;
 mod app;
 mod app_tabs;
+mod i18n;
 
 use gtk4::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::app_tabs::{AppState, build_ui};
+use crate::i18n::{Language, init as init_i18n};
 
 const APP_ID: &str = "com.openclaw.ilogcat";
 
 fn main() {
     // 加载配置
-    let _config = config::Config::load().unwrap_or_default();
+    let config = config::Config::load().unwrap_or_default();
+
+    // 初始化国际化
+    let lang = Language::from_str(&config.ui.language);
+    init_i18n(lang);
 
     // 创建 GTK 应用
     let app = gtk4::Application::builder()

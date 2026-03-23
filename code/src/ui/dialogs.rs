@@ -600,3 +600,80 @@ pub fn show_theme_dialog<F>(
 
     dialog.present();
 }
+
+/// 显示语言设置对话框
+pub fn show_language_dialog<F>(
+    parent: &ApplicationWindow,
+    current_language: &str,
+    on_save: F,
+) where
+    F: Fn(String) + 'static,
+{
+    let dialog = Dialog::builder()
+        .title("Language Settings")
+        .transient_for(parent)
+        .modal(true)
+        .default_width(300)
+        .build();
+
+    let content = dialog.content_area();
+    content.set_spacing(12);
+    content.set_margin_top(12);
+    content.set_margin_bottom(12);
+    content.set_margin_start(12);
+    content.set_margin_end(12);
+
+    // 说明标签
+    let info_label = Label::builder()
+        .label("Select application language:")
+        .wrap(true)
+        .xalign(0.0)
+        .build();
+    content.append(&info_label);
+
+    // 语言选择
+    let lang_box = Box::new(Orientation::Vertical, 12);
+    
+    // English option
+    let en_radio = gtk4::CheckButton::builder()
+        .label("English")
+        .build();
+    
+    // Chinese option
+    let zh_radio = gtk4::CheckButton::builder()
+        .label("中文 (Chinese)")
+        .group(&en_radio)
+        .build();
+    
+    // 设置当前选中状态
+    if current_language == "zh" {
+        zh_radio.set_active(true);
+    } else {
+        en_radio.set_active(true);
+    }
+    
+    lang_box.append(&en_radio);
+    lang_box.append(&zh_radio);
+    content.append(&lang_box);
+
+    // 按钮
+    dialog.add_button("Cancel", ResponseType::Cancel);
+    dialog.add_button("Save", ResponseType::Accept);
+
+    let en_radio_clone = en_radio.clone();
+    let zh_radio_clone = zh_radio.clone();
+
+    dialog.connect_response(move |dialog, response| {
+        if response == ResponseType::Accept {
+            let lang = if zh_radio_clone.is_active() {
+                "zh".to_string()
+            } else {
+                "en".to_string()
+            };
+            on_save(lang);
+        }
+        dialog.close();
+    });
+
+    dialog.present();
+}

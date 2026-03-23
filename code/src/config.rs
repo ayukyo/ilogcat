@@ -37,6 +37,8 @@ pub struct UiConfig {
     pub font: String,
     #[serde(default = "default_theme")]
     pub theme: String,
+    #[serde(default = "default_language")]
+    pub language: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -157,6 +159,7 @@ fn default_max_lines() -> usize { 100000 }
 fn default_auto_scroll() -> bool { true }
 fn default_font() -> String { "Monospace 12".to_string() }
 fn default_theme() -> String { "dark".to_string() }
+fn default_language() -> String { "en".to_string() }
 fn default_ssh_port() -> u16 { 22 }
 fn default_color_verbose() -> String { "#808080".to_string() }
 fn default_color_debug() -> String { "#0066CC".to_string() }
@@ -180,7 +183,20 @@ impl Default for UiConfig {
         Self {
             font: default_font(),
             theme: default_theme(),
+            language: default_language(),
         }
+    }
+}
+
+impl UiConfig {
+    /// 设置语言
+    pub fn set_language(&mut self, lang: &str) {
+        self.language = lang.to_string();
+    }
+    
+    /// 获取当前语言
+    pub fn current_language(&self) -> &str {
+        &self.language
     }
 }
 
