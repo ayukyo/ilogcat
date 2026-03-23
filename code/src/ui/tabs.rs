@@ -285,14 +285,15 @@ impl LogTab {
                 user_scrolled_up.store(true, Ordering::SeqCst);
             } else {
                 // 用户向下滚动，检查是否到达底部
-                let vadj = text_view.vadjustment();
-                let current = vadj.value();
-                let upper = vadj.upper();
-                let page_size = vadj.page_size();
-                
-                // 如果接近底部（在50像素内），恢复自动滚动
-                if current + page_size >= upper - 50.0 {
-                    user_scrolled_up.store(false, Ordering::SeqCst);
+                if let Some(vadj) = text_view.vadjustment() {
+                    let current = vadj.value();
+                    let upper = vadj.upper();
+                    let page_size = vadj.page_size();
+                    
+                    // 如果接近底部（在50像素内），恢复自动滚动
+                    if current + page_size >= upper - 50.0 {
+                        user_scrolled_up.store(false, Ordering::SeqCst);
+                    }
                 }
             }
             glib::Propagation::Proceed
@@ -301,19 +302,20 @@ impl LogTab {
         self.text_view.add_controller(scroll_controller);
         
         // 监听垂直调整值变化，检测是否滚动到底部
-        let vadj = self.text_view.vadjustment();
-        let user_scrolled_up_clone = self.user_scrolled_up.clone();
-        
-        vadj.connect_value_changed(move |adj| {
-            let current = adj.value();
-            let upper = adj.upper();
-            let page_size = adj.page_size();
+        if let Some(vadj) = self.text_view.vadjustment() {
+            let user_scrolled_up_clone = self.user_scrolled_up.clone();
             
-            // 如果滚动到底部附近，重置用户滚动标志
-            if current + page_size >= upper - 10.0 {
-                user_scrolled_up_clone.store(false, Ordering::SeqCst);
-            }
-        });
+            vadj.connect_value_changed(move |adj: &gtk4::Adjustment| {
+                let current = adj.value();
+                let upper = adj.upper();
+                let page_size = adj.page_size();
+                
+                // 如果滚动到底部附近，重置用户滚动标志
+                if current + page_size >= upper - 10.0 {
+                    user_scrolled_up_clone.store(false, Ordering::SeqCst);
+                }
+            });
+        }
     }
     
     /// 切换自动滚动状态

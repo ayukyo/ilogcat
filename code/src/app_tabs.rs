@@ -706,11 +706,11 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         if let Some(ref tm) = state_clone.borrow().tab_manager {
             if let Some(tab) = tm.borrow().current_tab() {
                 let stats = tab.borrow().get_statistics();
-                StatsDialog::show(&window_clone, &stats);
+                StatsDialog::show(window_clone.upcast_ref::<gtk4::Window>(), &stats);
             } else {
                 // 没有活动标签页，显示空统计
                 let stats = LogStatistics::new();
-                StatsDialog::show(&window_clone, &stats);
+                StatsDialog::show(window_clone.upcast_ref::<gtk4::Window>(), &stats);
             }
         }
     });

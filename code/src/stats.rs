@@ -7,7 +7,7 @@ use std::rc::Rc;
 use crate::log::LogLevel;
 
 /// 日志统计信息
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 pub struct LogStatistics {
     /// 各级别日志数量
     pub level_counts: HashMap<LogLevel, usize>,
@@ -310,6 +310,12 @@ impl Clone for LogStatistics {
             start_time: self.start_time,
             last_update: self.last_update,
         }
+    }
+}
+
+impl Default for LogStatistics {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
