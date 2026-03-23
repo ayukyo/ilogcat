@@ -8,8 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-debug:
     runs-on: ubuntu-latest
+    name: Build Debug
 
     steps:
       - name: Checkout code
@@ -42,9 +43,161 @@ jobs:
         working-directory: code
         run: cargo test --verbose
 
-      - name: Upload binary
+      - name: Upload debug binary
         uses: actions/upload-artifact@v4
         with:
           name: ilogcat-debug
           path: code/target/debug/ilogcat
           retention-days: 7
+
+  build-release:
+    runs-on: ubuntu-latest
+    name: Build Release
+    needs: build-debug
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libssh2-1-dev pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            code/target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build Release
+        working-directory: code
+        run: cargo build --release --verbose
+
+      - name: Strip binary
+        working-directory: code
+        run: strip target/release/ilogcat
+
+      - name: Create release package
+        working-directory: code
+        run: |
+          mkdir -p ilogcat-release/usr/bin
+          mkdir -p ilogcat-release/usr/share/applications
+          mkdir -p ilogcat-release/usr/share/icons/hicolor/256x256/apps
+          mkdir -p ilogcat-release/DEBIAN
+          
+          # Copy binary
+          cp target/release/ilogcat ilogcat-release/usr/bin/
+          
+          # Create desktop entry
+          cat > ilogcat-release/usr/share/applications/ilogcat.desktop << 'EOF'
+          [Desktop Entry]
+          Name=iLogCat
+          Comment=Linux Log Viewer inspired by Android Studio Logcat
+          Exec=/usr/bin/ilogcat
+          Icon=ilogcat
+          Terminal=false
+          Type=Application
+          Categories=System;Monitoring;
+          Keywords=log;viewer;monitoring;
+          EOF
+          
+          # Create icon (using a simple placeholder)
+          # In production, you would use a proper icon file
+          touch ilogcat-release/usr/share/icons/hicolor/256x256/apps/ilogcat.png
+          
+          # Create control file for deb package
+          cat > ilogcat-release/DEBIAN/control << EOF
+          Package: ilogcat
+          Version: 0.1.0
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-4-1, libssh2-1
+          Maintainer: DevAgent <dev-agent@openclaw.local>
+          Description: Linux Log Viewer
+           A logcat-like log viewer for Linux, inspired by Android Studio Logcat.
+           Supports local system logs, file logs, and remote SSH logs.
+          EOF
+          
+          # Build deb package
+          dpkg-deb --build ilogcat-release
+          mv ilogcat-release.deb ilogcat_0.1.0_amd64.deb
+
+      - name: Upload release binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ilogcat-release
+          path: |
+            code/target/release/ilogcat
+            code/ilogcat_0.1.0_amd64.deb
+          retention-days: 30
+
+  create-release:
+    runs-on: ubuntu-latest
+    name: Create GitHub Release
+    needs: build-release
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ilogcat-release
+          path: release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v0.2.0
+          name: iLogCat v0.2.0
+          body: |
+            ## iLogCat v0.2.0
+
+            ### New Features
+            - Multi-tab log windows support
+            - Custom log level keywords
+            - SSH remote command execution
+            - Settings export/import
+
+            ### Installation
+
+            #### Debian/Ubuntu (.deb package)
+            ```bash
+            sudo dpkg -i ilogcat_0.1.0_amd64.deb
+            sudo apt-get install -f  # Install dependencies if needed
+            ```
+
+            #### From binary
+            ```bash
+            chmod +x ilogcat
+            sudo cp ilogcat /usr/local/bin/
+            ```
+
+            ### System Requirements
+            - Linux (Ubuntu 20.04+, Debian 11+, Fedora 35+)
+            - GTK4 runtime libraries
+            - libssh2
+
+            ### Usage
+            ```bash
+            ilogcat
+            ```
+          files: |
+            release/ilogcat
+            release/ilogcat_0.1.0_amd64.deb
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
