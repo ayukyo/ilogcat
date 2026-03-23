@@ -11,8 +11,8 @@
   "status": "in_progress",
   "priority": 1,
   "createdAt": "2026-03-22T21:30:00Z",
-  "lastActivity": "2026-03-23T11:45:00Z",
-  "progress": 50,
+  "lastActivity": "2026-03-23T12:35:00Z",
+  "progress": 60,
   "currentStage": "第二期 - 功能增强",
   "currentTask": "编译打包安装包功能开发",
   "stages": [
@@ -59,7 +59,7 @@
     {
       "name": "第二期 - 功能增强",
       "status": "in_progress",
-      "progress": 35
+      "progress": 60
     }
   ],
   "completedTasks": [
