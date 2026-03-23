@@ -474,6 +474,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         let window_ref = window_clone.clone();
         export_btn.connect_clicked(move |_| {
             let state_ref = state_ref.clone();
+            let window_ref = window_ref.clone();
             crate::ui::dialogs::show_export_settings_dialog(&window_ref, move |path| {
                 let state = state_ref.borrow();
                 match state.config.export_to(&path) {
@@ -494,6 +495,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         let window_ref = window_clone.clone();
         import_btn.connect_clicked(move |_| {
             let state_ref = state_ref.clone();
+            let window_ref = window_ref.clone();
             crate::ui::dialogs::show_import_settings_dialog(&window_ref, move |path| {
                 match Config::import_from(&path) {
                     Ok(imported_config) => {

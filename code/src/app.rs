@@ -446,6 +446,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
             state.config.custom_level_keywords.clone()
         };
         
+        let window_ref2 = window_ref.clone();
         crate::ui::dialogs::show_custom_keywords_dialog(&window_ref, custom_keywords, move |new_keywords| {
             let mut state = state_ref.borrow_mut();
             state.config.custom_level_keywords = new_keywords;
@@ -453,7 +454,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
             
             // 更新解析器的自定义关键字
             // 这里可以通过消息机制通知日志源更新解析器
-            crate::ui::dialogs::show_info_dialog(&window_ref, "Settings Saved", "Custom level keywords have been updated.");
+            crate::ui::dialogs::show_info_dialog(&window_ref2, "Settings Saved", "Custom level keywords have been updated.");
         });
     });
 

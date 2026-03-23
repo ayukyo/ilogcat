@@ -308,7 +308,7 @@ impl TabManager {
             
             // 从notebook移除
             if let Some(page) = self.notebook.nth_page(Some(pos as u32)) {
-                self.notebook.remove_page(Some(pos as i32));
+                self.notebook.remove_page(Some(pos as u32));
             }
             
             // 从列表移除

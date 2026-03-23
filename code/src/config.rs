@@ -21,7 +21,7 @@ pub struct Config {
     pub saved_filters: Vec<SavedFilter>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GeneralConfig {
     #[serde(default = "default_log_level")]
     pub default_log_level: String,
@@ -31,7 +31,7 @@ pub struct GeneralConfig {
     pub auto_scroll: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UiConfig {
     #[serde(default = "default_font")]
     pub font: String,
@@ -39,7 +39,7 @@ pub struct UiConfig {
     pub theme: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ColorConfig {
     #[serde(default = "default_color_verbose")]
     pub verbose: String,
@@ -56,7 +56,7 @@ pub struct ColorConfig {
 }
 
 /// 自定义日志级别关键字配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CustomLevelKeywords {
     #[serde(default = "default_verbose_keywords")]
     pub verbose: Vec<String>,
