@@ -215,6 +215,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         "Local: journalctl",
         "File...",
         "SSH...",
+        "SSH Command...",
     ]);
     source_combo.set_selected(0);
     toolbar.append(&source_combo);
@@ -343,6 +344,33 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                         tab_ref.borrow_mut().set_source(std::boxed::Box::new(source));
                     }
                 });
+            }
+            4 => {
+                // SSH Command - 显示SSH命令执行对话框
+                let tab_ref = tab.clone();
+                let window_ref = window_ref.clone();
+                let state_ref = state_ref.clone();
+                
+                // 获取已保存的SSH服务器列表
+                let saved_servers = state_ref.borrow().config.ssh_servers.clone();
+                
+                if saved_servers.is_empty() {
+                    crate::ui::dialogs::show_info_dialog(&window_ref, "No Saved Servers", 
+                        "Please connect to an SSH server first using 'SSH...' option.");
+                } else {
+                    crate::ui::dialogs::show_ssh_command_dialog(&window_ref, saved_servers, 
+                        move |server_config, command| {
+                            tab_ref.borrow_mut().clear_logs();
+                            
+                            // 创建SSH源执行自定义命令
+                            let mut source = SshSource::new(server_config, command);
+                            if let Err(e) = source.start() {
+                                eprintln!("Failed to start SSH command: {}", e);
+                            } else {
+                                tab_ref.borrow_mut().set_source(std::boxed::Box::new(source));
+                            }
+                        });
+                }
             }
             _ => {}
         }

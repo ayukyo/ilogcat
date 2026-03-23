@@ -4,7 +4,8 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 
 use crate::ssh::config::{SshConfig, AuthMethod};
-use crate::config::CustomLevelKeywords;
+use crate::config::{CustomLevelKeywords, SshServerConfig};
+use crate::config::Config;
 
 /// 显示 SSH 连接对话框
 pub fn show_ssh_dialog<F>(parent: &ApplicationWindow, on_connect: F)
@@ -327,6 +328,106 @@ pub fn show_custom_keywords_dialog<F>(
             }
             
             on_save(new_keywords);
+        }
+        dialog.close();
+    });
+
+    dialog.present();
+}
+
+/// 显示 SSH 命令执行对话框
+/// 允许用户在已连接的 SSH 服务器上执行自定义命令
+pub fn show_ssh_command_dialog<F>(
+    parent: &ApplicationWindow,
+    saved_servers: Vec<SshServerConfig>,
+    on_execute: F,
+) where
+    F: Fn(SshServerConfig, String) + 'static,
+{
+    let dialog = Dialog::builder()
+        .title("Execute SSH Command")
+        .transient_for(parent)
+        .modal(true)
+        .default_width(500)
+        .default_height(300)
+        .build();
+
+    let content = dialog.content_area();
+    content.set_spacing(12);
+    content.set_margin_top(12);
+    content.set_margin_bottom(12);
+    content.set_margin_start(12);
+    content.set_margin_end(12);
+
+    // 服务器选择
+    let server_box = Box::new(Orientation::Horizontal, 6);
+    let server_label = Label::builder()
+        .label("Server:")
+        .width_chars(12)
+        .xalign(1.0)
+        .build();
+    
+    let server_names: Vec<String> = saved_servers.iter()
+        .map(|s| format!("{} ({}@{})", s.name, s.username, s.host))
+        .collect();
+    
+    let server_combo = if !server_names.is_empty() {
+        gtk4::DropDown::from_strings(&server_names.iter().map(|s| s.as_str()).collect::<Vec<_>>())
+    } else {
+        gtk4::DropDown::from_strings(&["No saved servers"])
+    };
+    server_combo.set_hexpand(true);
+    
+    server_box.append(&server_label);
+    server_box.append(&server_combo);
+    content.append(&server_box);
+
+    // 命令输入
+    let command_box = Box::new(Orientation::Vertical, 6);
+    let command_label = Label::builder()
+        .label("Command:")
+        .xalign(0.0)
+        .build();
+    
+    let command_entry = Entry::builder()
+        .placeholder_text("e.g., tail -f /var/log/app.log")
+        .hexpand(true)
+        .build();
+    
+    // 常用命令建议
+    let suggestions_label = Label::builder()
+        .label("Suggestions: dmesg -w, journalctl -f, tail -f /var/log/syslog")
+        .wrap(true)
+        .xalign(0.0)
+        .css_classes(vec!["dim-label".to_string()])
+        .build();
+    
+    command_box.append(&command_label);
+    command_box.append(&command_entry);
+    command_box.append(&suggestions_label);
+    content.append(&command_box);
+
+    // 按钮
+    dialog.add_button("Cancel", ResponseType::Cancel);
+    if !saved_servers.is_empty() {
+        dialog.add_button("Execute", ResponseType::Accept);
+    }
+
+    let dialog_clone = dialog.clone();
+    let server_combo_clone = server_combo.clone();
+    let command_entry_clone = command_entry.clone();
+    let saved_servers_clone = saved_servers.clone();
+
+    dialog.connect_response(move |dialog, response| {
+        if response == ResponseType::Accept && !saved_servers_clone.is_empty() {
+            let idx = server_combo_clone.selected() as usize;
+            if idx < saved_servers_clone.len() {
+                let server = saved_servers_clone[idx].clone();
+                let command = command_entry_clone.text().to_string();
+                if !command.is_empty() {
+                    on_execute(server, command);
+                }
+            }
         }
         dialog.close();
     });
