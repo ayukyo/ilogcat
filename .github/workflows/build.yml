@@ -54,6 +54,9 @@ jobs:
     runs-on: ubuntu-latest
     name: Build Release
     needs: build-debug
+    container:
+      image: ubuntu:20.04
+      options: --privileged
 
     steps:
       - name: Checkout code
@@ -61,8 +64,8 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libssh2-1-dev pkg-config librsvg2-bin
+          apt-get update
+          apt-get install -y libgtk-4-dev libssh2-1-dev pkg-config librsvg2-bin curl build-essential
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
