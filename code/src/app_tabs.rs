@@ -12,7 +12,7 @@ use crate::log::{LogSource, LogEntry, LogLevel, CommandSource, FileWatchSource};
 use crate::log::remote::SshSource;
 use crate::filter::Filter;
 use crate::config::Config;
-use crate::ui::tabs::{TabManager, LogTab};
+use crate::ui::tabs::{TabManager, LogTab, SourceType};
 use crate::config::SshServerConfig;
 
 /// 应用状态（支持多标签页）
@@ -88,6 +88,13 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     let state_clone = state.clone();
     glib::timeout_add_local(Duration::from_millis(100), move || {
         refresh_logs(state_clone.clone());
+        glib::ControlFlow::Continue
+    });
+
+    // 启动标签页标题刷新定时器（每秒更新 SSH 连接状态）
+    let state_clone = state.clone();
+    glib::timeout_add_local(Duration::from_secs(1), move || {
+        refresh_tab_titles(state_clone.clone());
         glib::ControlFlow::Continue
     });
 
@@ -186,6 +193,20 @@ fn refresh_logs(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
                 }
             }
         }
+    }
+    
+    glib::ControlFlow::Continue
+}
+
+/// 刷新所有标签页标题（更新 SSH 连接状态）
+fn refresh_tab_titles(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
+    let tab_manager = {
+        let state_ref = state.borrow();
+        state_ref.tab_manager.clone()
+    };
+    
+    if let Some(tm) = tab_manager {
+        tm.borrow().refresh_all_tab_titles();
     }
     
     glib::ControlFlow::Continue
@@ -293,6 +314,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
             0 => {
                 // dmesg
                 tab.borrow_mut().clear_logs();
+                tab.borrow_mut().set_source_info(SourceType::Dmesg);
                 let mut source = CommandSource::new("dmesg".to_string());
                 source = CommandSource::with_args(
                     "dmesg".to_string(),
@@ -302,11 +324,16 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                     crate::ui::dialogs::show_error_dialog(&window_ref, "Failed to Start dmesg", &e.to_string());
                 } else {
                     tab.borrow_mut().set_source(std::boxed::Box::new(source));
+                    // 更新标签页标题
+                    if let Some(ref tm) = state_ref.borrow().tab_manager {
+                        tm.borrow().update_tab_title(tab.borrow().id);
+                    }
                 }
             }
             1 => {
                 // journalctl
                 tab.borrow_mut().clear_logs();
+                tab.borrow_mut().set_source_info(SourceType::Journalctl);
                 let mut source = CommandSource::with_args(
                     "journalctl".to_string(),
                     vec!["-f".to_string(), "-o".to_string(), "short-iso".to_string()]
@@ -315,18 +342,29 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                     crate::ui::dialogs::show_error_dialog(&window_ref, "Failed to Start journalctl", &e.to_string());
                 } else {
                     tab.borrow_mut().set_source(std::boxed::Box::new(source));
+                    // 更新标签页标题
+                    if let Some(ref tm) = state_ref.borrow().tab_manager {
+                        tm.borrow().update_tab_title(tab.borrow().id);
+                    }
                 }
             }
             2 => {
                 // File - 显示文件选择对话框
                 let tab_ref = tab.clone();
+                let state_ref_clone = state_ref.clone();
                 crate::ui::dialogs::show_file_dialog(&window_ref, move |path| {
                     tab_ref.borrow_mut().clear_logs();
+                    tab_ref.borrow_mut().set_source_info(SourceType::File(path.clone()));
                     let mut source = FileWatchSource::new(path);
                     if let Err(e) = source.start() {
                         eprintln!("Failed to start file watch: {}", e);
                     } else {
                         tab_ref.borrow_mut().set_source(std::boxed::Box::new(source));
+                        // 更新标签页标题
+                        if let Some(ref tm) = state_ref_clone.borrow().tab_manager {
+                            let tab_id = tab_ref.borrow().id;
+                            tm.borrow().update_tab_title(tab_id);
+                        }
                     }
                 });
             }
@@ -347,11 +385,18 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                     
                     // 创建SSH源
                     let ssh_config = crate::config::SshServerConfig::from(ssh_config);
+                    let host = ssh_config.host.clone();
+                    tab_ref.borrow_mut().set_source_info(SourceType::Ssh(host.clone(), "journalctl".to_string()));
                     let mut source = SshSource::new(ssh_config, "journalctl -f -o short-iso".to_string());
                     if let Err(e) = source.start() {
                         eprintln!("Failed to start SSH source: {}", e);
                     } else {
                         tab_ref.borrow_mut().set_source(std::boxed::Box::new(source));
+                        // 更新标签页标题
+                        if let Some(ref tm) = state_ref.borrow().tab_manager {
+                            let tab_id = tab_ref.borrow().id;
+                            tm.borrow().update_tab_title(tab_id);
+                        }
                     }
                 });
             }
@@ -368,9 +413,14 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                     crate::ui::dialogs::show_info_dialog(&window_ref, "No Saved Servers", 
                         "Please connect to an SSH server first using 'SSH...' option.");
                 } else {
+                    let state_ref_clone = state_ref.clone();
                     crate::ui::dialogs::show_ssh_command_dialog(&window_ref, saved_servers, 
                         move |server_config, command| {
                             tab_ref.borrow_mut().clear_logs();
+                            
+                            let host = server_config.host.clone();
+                            let cmd = command.clone();
+                            tab_ref.borrow_mut().set_source_info(SourceType::SshCommand(host, cmd));
                             
                             // 创建SSH源执行自定义命令
                             let mut source = SshSource::new(server_config, command);
@@ -378,6 +428,11 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                                 eprintln!("Failed to start SSH command: {}", e);
                             } else {
                                 tab_ref.borrow_mut().set_source(std::boxed::Box::new(source));
+                                // 更新标签页标题
+                                if let Some(ref tm) = state_ref_clone.borrow().tab_manager {
+                                    let tab_id = tab_ref.borrow().id;
+                                    tm.borrow().update_tab_title(tab_id);
+                                }
                             }
                         });
                 }
@@ -531,22 +586,117 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
     toolbar
 }
 
-fn create_filter_bar(_state: Rc<RefCell<AppState>>) -> gtk4::Box {
+fn create_filter_bar(state: Rc<RefCell<AppState>>) -> gtk4::Box {
     let filter_bar = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(6)
         .build();
 
     let search_entry = SearchEntry::builder()
-        .placeholder_text("Filter logs...")
+        .placeholder_text("Filter logs (Enter to apply)...")
         .hexpand(true)
         .build();
     filter_bar.append(&search_entry);
 
-    let add_filter_btn = Button::builder()
-        .label("+ Filter")
+    // 搜索按钮
+    let search_btn = Button::builder()
+        .label("Apply")
+        .tooltip_text("Apply filter to current tab")
         .build();
-    filter_bar.append(&add_filter_btn);
+    filter_bar.append(&search_btn);
+
+    // 清除过滤按钮
+    let clear_filter_btn = Button::builder()
+        .label("Clear")
+        .tooltip_text("Clear all filters")
+        .build();
+    filter_bar.append(&clear_filter_btn);
+
+    // 搜索框回车事件
+    let state_clone = state.clone();
+    search_entry.connect_activate(move |entry| {
+        let text = entry.text().to_string();
+        apply_filter_to_current_tab(state_clone.clone(), &text);
+    });
+
+    // 搜索按钮事件
+    let state_clone = state.clone();
+    let search_entry_clone = search_entry.clone();
+    search_btn.connect_clicked(move |_| {
+        let text = search_entry_clone.text().to_string();
+        apply_filter_to_current_tab(state_clone.clone(), &text);
+    });
+
+    // 清除过滤按钮事件
+    let state_clone = state.clone();
+    let search_entry_clone = search_entry.clone();
+    clear_filter_btn.connect_clicked(move |_| {
+        search_entry_clone.set_text("");
+        clear_filter_on_current_tab(state_clone.clone());
+    });
 
     filter_bar
+}
+
+/// 应用过滤器到当前标签页
+fn apply_filter_to_current_tab(state: Rc<RefCell<AppState>>, filter_text: &str) {
+    if filter_text.is_empty() {
+        clear_filter_on_current_tab(state);
+        return;
+    }
+
+    let tab_manager = {
+        let state_ref = state.borrow();
+        state_ref.tab_manager.clone()
+    };
+
+    if let Some(tm) = tab_manager {
+        if let Some(tab) = tm.borrow().current_tab() {
+            let mut tab_ref = tab.borrow_mut();
+            
+            // 清除现有关键字过滤器
+            tab_ref.filter.keywords.clear();
+            
+            // 添加新的关键字过滤器
+            let keyword_filter = crate::filter::KeywordFilter::new(
+                filter_text.to_string(),
+                false,  // 不区分大小写
+                false,  // 不需要全词匹配
+            );
+            tab_ref.filter.keywords.push(keyword_filter);
+            
+            // 重新过滤并刷新显示
+            tab_ref.filtered_entries.clear();
+            for entry in &tab_ref.log_entries {
+                if tab_ref.filter.matches(entry) {
+                    tab_ref.filtered_entries.push(entry.clone());
+                }
+            }
+            tab_ref.filtered_count = tab_ref.filtered_entries.len();
+            tab_ref.refresh_filtered_display();
+        }
+    }
+}
+
+/// 清除当前标签页的过滤器
+fn clear_filter_on_current_tab(state: Rc<RefCell<AppState>>) {
+    let tab_manager = {
+        let state_ref = state.borrow();
+        state_ref.tab_manager.clone()
+    };
+
+    if let Some(tm) = tab_manager {
+        if let Some(tab) = tm.borrow().current_tab() {
+            let mut tab_ref = tab.borrow_mut();
+            
+            // 清除关键字过滤器
+            tab_ref.filter.keywords.clear();
+            tab_ref.filter.regex = None;
+            
+            // 重新显示所有日志
+            tab_ref.filtered_entries = tab_ref.log_entries.clone();
+            tab_ref.filtered_count = tab_ref.filtered_entries.len();
+            tab_ref.refresh_filtered_display();
+        }
+    }
 }

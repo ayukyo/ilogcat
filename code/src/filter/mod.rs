@@ -51,22 +51,39 @@ impl Filter {
 
     /// 检查日志条目是否通过过滤
     pub fn matches(&self, entry: &LogEntry) -> bool {
-        // 级别过滤
-        if !self.levels.is_empty() && !self.levels.contains(&entry.level.to_string()) {
-            return false;
+        // 级别过滤 - 使用单字符表示（V, D, I, W, E, F）
+        if !self.levels.is_empty() {
+            let level_str = entry.level.to_string(); // 返回单字符如 "V", "D", "I"
+            if !self.levels.contains(&level_str) {
+                return false;
+            }
         }
 
-        // 关键字过滤
+        // 关键字过滤 - 搜索整个日志内容（时间戳 + 级别 + 标签 + 消息）
         if !self.keywords.is_empty() {
-            let matches = self.keywords.iter().any(|kw| kw.matches(&entry.message));
+            let full_text = format!(
+                "{} {} {}: {}",
+                entry.timestamp.format("%H:%M:%S.%3f"),
+                entry.level,
+                entry.tag,
+                entry.message
+            );
+            let matches = self.keywords.iter().any(|kw| kw.matches(&full_text));
             if !matches {
                 return false;
             }
         }
 
-        // 正则过滤
+        // 正则过滤 - 同样搜索整个日志内容
         if let Some(ref regex) = self.regex {
-            if !regex.matches(&entry.message) {
+            let full_text = format!(
+                "{} {} {}: {}",
+                entry.timestamp.format("%H:%M:%S.%3f"),
+                entry.level,
+                entry.tag,
+                entry.message
+            );
+            if !regex.matches(&full_text) {
                 return false;
             }
         }

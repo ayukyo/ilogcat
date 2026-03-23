@@ -12,6 +12,8 @@ use crate::filter::Filter;
 pub struct LogTab {
     pub id: usize,
     pub name: String,
+    pub source_name: String,  // 日志来源名称（用于标签页标题）
+    pub source_type: SourceType,  // 日志源类型
     pub log_entries: Vec<LogEntry>,
     pub filtered_entries: Vec<LogEntry>,
     pub filter: Filter,
@@ -21,6 +23,18 @@ pub struct LogTab {
     pub filtered_count: usize,
     pub text_buffer: TextBuffer,
     pub text_view: TextView,
+    pub tab_label_widget: Option<gtk4::Box>,  // 保存标签页标题 widget 引用
+}
+
+/// 日志源类型
+#[derive(Clone, Debug)]
+pub enum SourceType {
+    Dmesg,
+    Journalctl,
+    File(String),  // 文件路径
+    Ssh(String, String),  // (主机名, 命令)
+    SshCommand(String, String),  // (主机名, 自定义命令)
+    Unknown,
 }
 
 impl LogTab {
@@ -37,6 +51,8 @@ impl LogTab {
         Self {
             id,
             name,
+            source_name: name.clone(),
+            source_type: SourceType::Unknown,
             log_entries: Vec::new(),
             filtered_entries: Vec::new(),
             filter: Filter::new(),
@@ -46,7 +62,67 @@ impl LogTab {
             filtered_count: 0,
             text_buffer,
             text_view,
+            tab_label_widget: None,
         }
+    }
+
+    /// 设置日志源信息并更新标签页标题
+    pub fn set_source_info(&mut self, source_type: SourceType) {
+        self.source_type = source_type;
+        self.source_name = match &source_type {
+            SourceType::Dmesg => "dmesg".to_string(),
+            SourceType::Journalctl => "journalctl".to_string(),
+            SourceType::File(path) => {
+                // 提取文件名
+                std::path::Path::new(path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(path)
+                    .to_string()
+            }
+            SourceType::Ssh(host, _) => format!("📡 {}", host),
+            SourceType::SshCommand(host, cmd) => {
+                // 简化命令显示
+                let short_cmd = if cmd.len() > 20 {
+                    format!("{}...", &cmd[..20])
+                } else {
+                    cmd.clone()
+                };
+                format!("📡 {}: {}", host, short_cmd)
+            }
+            SourceType::Unknown => self.name.clone(),
+        };
+    }
+
+    /// 获取连接状态图标
+    pub fn get_connection_status_icon(&self) -> &'static str {
+        match &self.source_type {
+            SourceType::Ssh(_, _) | SourceType::SshCommand(_, _) => {
+                if self.is_source_running() {
+                    "🟢"  // 连接中
+                } else {
+                    "🔴"  // 断开
+                }
+            }
+            _ => "",
+        }
+    }
+
+    /// 获取完整的标签页标题（包含状态图标）
+    pub fn get_tab_title(&self) -> String {
+        let status_icon = self.get_connection_status_icon();
+        if status_icon.is_empty() {
+            self.source_name.clone()
+        } else {
+            format!("{} {}", status_icon, self.source_name)
+        }
+    }
+
+    /// 检查日志源是否正在运行
+    fn is_source_running(&self) -> bool {
+        self.current_source.as_ref()
+            .map(|s| s.is_running())
+            .unwrap_or(false)
     }
 
     /// 设置日志标签
@@ -243,22 +319,24 @@ impl TabManager {
         scrolled.set_child(Some(&text_view));
 
         // 创建标签标题（包含关闭按钮）
-        let tab_label = self.create_tab_label(name, id);
+        let (tab_label, label_widget) = self.create_tab_label(name, id);
+        
+        // 保存标签页标题 widget 引用
+        tab.borrow_mut().tab_label_widget = Some(label_widget);
         
         // 添加到notebook
-        self.notebook.append_page(&scrolled, Some(&tab_label));
+        let page_num = self.notebook.append_page(&scrolled, Some(&tab_label));
         self.notebook.set_tab_reorderable(&scrolled, true);
         
         // 切换到新标签页
-        let page_num = self.notebook.n_pages() - 1;
-        self.notebook.set_current_page(Some(page_num));
+        self.notebook.set_current_page(Some(page_num as u32));
 
         self.tabs.push(tab.clone());
         tab
     }
 
-    /// 创建标签标题
-    fn create_tab_label(&self, name: &str, tab_id: usize) -> gtk4::Box {
+    /// 创建标签标题，返回 (容器, 标签文本widget)
+    fn create_tab_label(&self, name: &str, tab_id: usize) -> (gtk4::Box, gtk4::Label) {
         let hbox = gtk4::Box::new(Orientation::Horizontal, 6);
         
         let label = Label::new(Some(name));
@@ -271,7 +349,29 @@ impl TabManager {
         
         hbox.append(&close_btn);
 
-        hbox
+        (hbox, label)
+    }
+
+    /// 更新指定标签页的标题
+    pub fn update_tab_title(&self, tab_id: usize) {
+        if let Some(pos) = self.tabs.iter().position(|t| t.borrow().id == tab_id) {
+            let tab = self.tabs[pos].borrow();
+            if let Some(ref label_widget) = tab.tab_label_widget {
+                let new_title = tab.get_tab_title();
+                label_widget.set_text(&new_title);
+            }
+        }
+    }
+
+    /// 更新所有标签页的标题（用于刷新连接状态）
+    pub fn refresh_all_tab_titles(&self) {
+        for tab in &self.tabs {
+            let tab_ref = tab.borrow();
+            if let Some(ref label_widget) = tab_ref.tab_label_widget {
+                let new_title = tab_ref.get_tab_title();
+                label_widget.set_text(&new_title);
+            }
+        }
     }
 
     /// 获取当前标签页
