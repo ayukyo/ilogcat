@@ -690,9 +690,10 @@ fn clear_filter_on_current_tab(state: Rc<RefCell<AppState>>) {
         if let Some(tab) = tm.borrow().current_tab() {
             let mut tab_ref = tab.borrow_mut();
             
-            // 清除关键字过滤器
+            // 清除所有过滤器
             tab_ref.filter.keywords.clear();
             tab_ref.filter.regex = None;
+            tab_ref.filter.clear_level_filter();
             
             // 重新显示所有日志
             tab_ref.filtered_entries = tab_ref.log_entries.clone();
