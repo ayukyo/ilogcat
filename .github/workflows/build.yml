@@ -89,46 +89,6 @@ jobs:
         working-directory: code
         run: strip target/release/ilogcat
 
-      - name: Build AppImage
-        working-directory: code
-        run: |
-          # Download appimagetool
-          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
-          
-          # Create AppDir structure
-          mkdir -p AppDir/usr/bin
-          mkdir -p AppDir/usr/share/applications
-          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-          
-          # Copy binary
-          cp target/release/ilogcat AppDir/usr/bin/
-          
-          # Create desktop entry
-          cat > AppDir/usr/share/applications/ilogcat.desktop << 'EOF'
-          [Desktop Entry]
-          Name=iLogCat
-          Comment=Linux Log Viewer
-          Exec=ilogcat
-          Icon=ilogcat
-          Terminal=false
-          Type=Application
-          Categories=System;Monitor;
-          EOF
-          
-          # Copy icon
-          cp assets/ilogcat.svg AppDir/usr/share/icons/hicolor/256x256/apps/ilogcat.svg 2>/dev/null || true
-          
-          # Create AppRun
-          cat > AppDir/AppRun << 'EOF'
-          #!/bin/bash
-          exec "$APPDIR/usr/bin/ilogcat" "$@"
-          EOF
-          chmod +x AppDir/AppRun
-          
-          # Build AppImage
-          ./appimagetool-x86_64.AppImage AppDir ilogcat-x86_64.AppImage || true
-
       - name: Create release package
         working-directory: code
         run: |
@@ -233,14 +193,14 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v0.2.2
-          name: iLogCat v0.2.2
+          tag_name: v0.2.3
+          name: iLogCat v0.2.3
           body: |
-            ## iLogCat v0.2.2
+            ## iLogCat v0.2.3
 
             ### Fixes
-            - Fixed GLIBC compatibility - now built on Ubuntu 20.04
-            - Should work on most Linux distributions now
+            - Fixed GLIBC compatibility - now built in Ubuntu 22.04 container
+            - Should work on Ubuntu 22.04+ and similar systems
 
             ### Features
             - Multi-tab log windows support
@@ -256,8 +216,6 @@ jobs:
             sudo apt-get install -f  # Install dependencies if needed
             ```
 
-            After installation, you can find iLogCat in your application menu.
-
             #### From binary
             ```bash
             chmod +x ilogcat
@@ -265,7 +223,7 @@ jobs:
             ```
 
             ### System Requirements
-            - Linux (Ubuntu 18.04+, Debian 10+, Fedora 30+)
+            - Linux (Ubuntu 22.04+, Debian 12+)
             - GTK4 runtime libraries
             - libssh2
 
