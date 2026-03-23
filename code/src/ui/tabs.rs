@@ -55,7 +55,7 @@ impl LogTab {
         let text_buffer = text_view.buffer();
         Self::setup_log_tags(&text_buffer);
 
-        Self {
+        let mut tab = Self {
             id,
             name: name.clone(),
             source_name: name,
