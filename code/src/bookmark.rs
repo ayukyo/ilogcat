@@ -37,7 +37,7 @@ impl BookmarkManager {
         let bookmark_tag = TextTag::new(Some("bookmark"));
         bookmark_tag.set_background(Some("#FFD700"));
         bookmark_tag.set_foreground(Some("#000000"));
-        bookmark_tag.set_weight(gtk4::pango::Weight::Bold);
+        bookmark_tag.set_weight(gtk4::pango::Weight::Bold.into());
 
         tag_table.add(&bookmark_tag);
         self.tag = Some(bookmark_tag);
@@ -210,7 +210,7 @@ impl BookmarkDialog {
     }
 
     /// 显示书签列表对话框
-    pub fn show_list<F: Fn(usize, bool) + 'static>(
+    pub fn show_list<F: Fn(usize, bool) + Clone + 'static>(
         parent: &gtk4::Window,
         bookmarks: Vec<&Bookmark>,
         callback: F,
