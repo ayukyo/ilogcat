@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Background -->
+  <rect width="256" height="256" rx="32" fill="#2196F3"/>
+  
+  <!-- Terminal window -->
+  <rect x="32" y="48" width="192" height="160" rx="8" fill="#1E1E1E"/>
+  
+  <!-- Terminal header -->
+  <rect x="32" y="48" width="192" height="24" rx="8" fill="#333333"/>
+  <circle cx="52" cy="60" r="6" fill="#FF5F56"/>
+  <circle cx="72" cy="60" r="6" fill="#FFBD2E"/>
+  <circle cx="92" cy="60" r="6" fill="#27CA40"/>
+  
+  <!-- Log lines -->
+  <rect x="48" y="88" width="120" height="8" rx="2" fill="#4CAF50"/>
+  <rect x="48" y="104" width="80" height="8" rx="2" fill="#2196F3"/>
+  <rect x="48" y="120" width="140" height="8" rx="2" fill="#FFC107"/>
+  <rect x="48" y="136" width="60" height="8" rx="2" fill="#F44336"/>
+  <rect x="48" y="152" width="100" height="8" rx="2" fill="#9E9E9E"/>
+  <rect x="48" y="168" width="90" height="8" rx="2" fill="#4CAF50"/>
+  
+  <!-- "L" letter overlay -->
+  <text x="200" y="200" font-family="Arial, sans-serif" font-size="64" font-weight="bold" fill="white" opacity="0.3">L</text>
+</svg>
