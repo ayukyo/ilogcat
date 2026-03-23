@@ -2,18 +2,28 @@
 
 A logcat-like log viewer for Linux, inspired by Android Studio Logcat.
 
+![iLogCat Screenshot](docs/screenshot.png)
+
 ## Features
 
 - 🎨 **Color-coded log levels** - Different colors for VERBOSE, DEBUG, INFO, WARN, ERROR, FATAL
 - 🔍 **Keyword filtering** - Filter by single or multiple keywords with regex support
 - 📋 **Multiple log sources** - Execute commands, watch files, or connect via SSH
 - 🔌 **SSH remote support** - View remote logs with the same filtering capabilities
-- 📑 **Multi-tab support** - Open multiple log windows in tabs
+- 📑 **Multi-tab support** - Open multiple log windows in tabs with clear source labels
 - ⚙️ **Custom log level keywords** - Define your own keywords for log level detection
 - 💾 **Settings export/import** - Backup and share your configuration
+- 🌙 **Dark/Light theme** - Switch between themes (planned)
+- 🌐 **Multi-language** - Chinese/English support (planned)
 - 💻 **Native Linux GUI** - Built with GTK4 for a native experience
 
 ## Installation
+
+### System Requirements
+
+- **OS:** Linux (Ubuntu 22.04+, Debian 12+, Fedora 36+, Arch Linux)
+- **GLIBC:** 2.35 or later
+- **Runtime:** GTK4, libssh2
 
 ### Prerequisites
 
@@ -37,8 +47,8 @@ sudo pacman -S gtk4 libssh2
 Download the latest release from [GitHub Releases](https://github.com/ayukyo/ilogcat/releases).
 
 ```bash
-# Download and extract
-wget https://github.com/ayukyo/ilogcat/releases/download/v0.2.0/ilogcat_0.2.0_amd64.deb
+# Download latest version
+wget https://github.com/ayukyo/ilogcat/releases/latest/download/ilogcat_0.2.0_amd64.deb
 sudo dpkg -i ilogcat_0.2.0_amd64.deb
 sudo apt-get install -f  # Install dependencies if needed
 ```
@@ -146,6 +156,16 @@ ilogcat/
 
 ## Changelog
 
+### v0.2.3 (2026-03-23)
+
+- Fixed GLIBC compatibility - now works on Ubuntu 22.04+ (GLIBC 2.35+)
+- Built in Ubuntu 22.04 container for better compatibility
+
+### v0.2.1 (2026-03-23)
+
+- Fixed desktop icon not showing
+- Fixed application not launching from desktop menu
+
 ### v0.2.0 (2026-03-23)
 
 - Added multi-tab support
@@ -160,6 +180,17 @@ ilogcat/
 - Basic log viewing functionality
 - SSH remote support
 - Log level filtering
+
+## Roadmap
+
+### v0.3.0 (Planned)
+
+- [ ] Improved tab titles showing log source names
+- [ ] SSH connection status indicator
+- [ ] SSH interactive command input
+- [ ] Filter functionality fixes
+- [ ] Dark/Light theme switcher
+- [ ] Chinese/English language support
 
 ## License
 
