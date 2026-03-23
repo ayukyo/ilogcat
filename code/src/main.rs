@@ -6,6 +6,8 @@ mod config;
 mod app;
 mod app_tabs;
 mod i18n;
+mod export;
+mod bookmark;
 
 use gtk4::prelude::*;
 use std::cell::RefCell;

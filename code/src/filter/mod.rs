@@ -1,10 +1,12 @@
 pub mod keyword;
 pub mod level;
 pub mod regex_filter;
+pub mod enhanced;
 
 pub use keyword::KeywordFilter;
 pub use level::LevelFilter;
 pub use regex_filter::RegexFilter;
+pub use enhanced::{EnhancedRegexFilter, FilterPattern};
 
 use crate::log::LogEntry;
 use std::collections::HashSet;
