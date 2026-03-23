@@ -50,8 +50,8 @@ impl LogTab {
 
         Self {
             id,
-            name,
-            source_name: name.clone(),
+            name: name.clone(),
+            source_name: name,
             source_type: SourceType::Unknown,
             log_entries: Vec::new(),
             filtered_entries: Vec::new(),
@@ -68,12 +68,10 @@ impl LogTab {
 
     /// 设置日志源信息并更新标签页标题
     pub fn set_source_info(&mut self, source_type: SourceType) {
-        self.source_type = source_type;
         self.source_name = match &source_type {
             SourceType::Dmesg => "dmesg".to_string(),
             SourceType::Journalctl => "journalctl".to_string(),
             SourceType::File(path) => {
-                // 提取文件名
                 std::path::Path::new(path)
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -82,7 +80,6 @@ impl LogTab {
             }
             SourceType::Ssh(host, _) => format!("📡 {}", host),
             SourceType::SshCommand(host, cmd) => {
-                // 简化命令显示
                 let short_cmd = if cmd.len() > 20 {
                     format!("{}...", &cmd[..20])
                 } else {
@@ -92,6 +89,7 @@ impl LogTab {
             }
             SourceType::Unknown => self.name.clone(),
         };
+        self.source_type = source_type;
     }
 
     /// 获取连接状态图标

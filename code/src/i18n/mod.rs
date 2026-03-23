@@ -385,8 +385,8 @@ pub fn i18n() -> std::sync::MutexGuard<'static, I18n> {
 }
 
 /// 翻译快捷函数
-pub fn t(key: I18nKey) -> &'static str {
-    i18n().t(key)
+pub fn t(key: I18nKey) -> String {
+    i18n().t(key).to_string()
 }
 
 /// 切换语言

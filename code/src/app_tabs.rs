@@ -893,11 +893,11 @@ fn apply_filter_to_current_tab(state: Rc<RefCell<AppState>>, filter_text: &str) 
             
             // 重新过滤并刷新显示
             tab_ref.filtered_entries.clear();
-            for entry in &tab_ref.log_entries {
-                if tab_ref.filter.matches(entry) {
-                    tab_ref.filtered_entries.push(entry.clone());
-                }
-            }
+            let entries_to_add: Vec<_> = tab_ref.log_entries.iter()
+                .filter(|entry| tab_ref.filter.matches(entry))
+                .cloned()
+                .collect();
+            tab_ref.filtered_entries = entries_to_add;
             tab_ref.filtered_count = tab_ref.filtered_entries.len();
             tab_ref.refresh_filtered_display();
         }
