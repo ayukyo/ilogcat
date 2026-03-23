@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::collections::HashMap;
 
 use crate::log::{LogSource, LogEntry, LogLevel};
 use crate::filter::Filter;
@@ -24,6 +25,9 @@ pub struct LogTab {
     pub text_buffer: TextBuffer,
     pub text_view: TextView,
     pub tab_label_widget: Option<gtk4::Label>,  // 保存标签页标题文本 widget 引用
+    // 统计信息
+    level_counts: HashMap<LogLevel, usize>,
+    start_time: std::time::Instant,
 }
 
 /// 日志源类型
@@ -63,6 +67,25 @@ impl LogTab {
             text_buffer,
             text_view,
             tab_label_widget: None,
+            level_counts: HashMap::new(),
+            start_time: std::time::Instant::now(),
+        }
+    }
+
+    /// 获取统计信息
+    pub fn get_statistics(&self) -> crate::stats::LogStatistics {
+        let total = self.log_entries.len();
+        let filtered = self.filtered_entries.len();
+        let elapsed = self.start_time.elapsed().as_secs_f64();
+        let rate = if elapsed > 0.0 { total as f64 / elapsed } else { 0.0 };
+        
+        crate::stats::LogStatistics {
+            level_counts: self.level_counts.clone(),
+            total_count: total,
+            filtered_count: filtered,
+            logs_per_second: rate,
+            start_time: self.start_time,
+            last_update: std::time::Instant::now(),
         }
     }
 
@@ -169,6 +192,9 @@ impl LogTab {
     pub fn append_log_entry(&mut self, entry: &LogEntry) {
         self.log_entries.push(entry.clone());
         self.log_count = self.log_entries.len();
+        
+        // 更新级别统计
+        *self.level_counts.entry(entry.level).or_insert(0) += 1;
 
         if self.filter.matches(entry) {
             self.filtered_entries.push(entry.clone());
@@ -230,6 +256,8 @@ impl LogTab {
         self.filtered_entries.clear();
         self.log_count = 0;
         self.filtered_count = 0;
+        self.level_counts.clear();
+        self.start_time = std::time::Instant::now();
     }
 
     /// 暂停/恢复

@@ -16,6 +16,7 @@ use crate::ui::tabs::{TabManager, LogTab};
 use crate::ui::TabSourceType as SourceType;
 use crate::ui::{SearchBar, SearchManager};
 use crate::config::SshServerConfig;
+use crate::stats::{StatsPanel, StatsDialog, LogStatistics};
 
 /// 应用状态（支持多标签页）
 pub struct AppState {
@@ -429,6 +430,13 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
     let sep4 = Separator::new(Orientation::Vertical);
     toolbar.append(&sep4);
 
+    // 统计按钮
+    let stats_btn = Button::builder()
+        .label("Stats")
+        .tooltip_text("Show log statistics")
+        .build();
+    toolbar.append(&stats_btn);
+
     // 设置按钮
     let settings_btn = Button::builder()
         .label("Settings")
@@ -640,6 +648,23 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                 tab.borrow_mut().toggle_pause();
                 let paused = tab.borrow().is_paused();
                 pause_btn_clone.set_label(if paused { "Resume" } else { "Pause" });
+            }
+        }
+    });
+
+    // 统计按钮事件
+    let state_clone = state.clone();
+    let window_clone = window.clone();
+    stats_btn.connect_clicked(move |_| {
+        // 获取当前标签页的统计信息
+        if let Some(ref tm) = state_clone.borrow().tab_manager {
+            if let Some(tab) = tm.borrow().current_tab() {
+                let stats = tab.borrow().get_statistics();
+                StatsDialog::show(&window_clone, &stats);
+            } else {
+                // 没有活动标签页，显示空统计
+                let stats = LogStatistics::new();
+                StatsDialog::show(&window_clone, &stats);
             }
         }
     });
