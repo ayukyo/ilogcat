@@ -14,7 +14,7 @@
   "lastActivity": "2026-03-23T12:35:00Z",
   "progress": 60,
   "currentStage": "第二期 - 功能增强",
-  "currentTask": "编译打包安装包功能开发",
+  "currentTask": "编译打包安装包功能开发 - 修复 GitHub Actions artifact 路径",
   "stages": [
     {
       "name": "需求分析",
