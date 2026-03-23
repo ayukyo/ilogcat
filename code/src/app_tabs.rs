@@ -191,8 +191,8 @@ fn refresh_logs(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
     glib::ControlFlow::Continue
 }
 
-fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> Box {
-    let toolbar = Box::builder()
+fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> gtk4::Box {
+    let toolbar = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(6)
         .build();
