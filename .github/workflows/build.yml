@@ -55,7 +55,7 @@ jobs:
     name: Build Release
     needs: build-debug
     container:
-      image: ubuntu:20.04
+      image: ubuntu:22.04
       options: --privileged
 
     steps:
