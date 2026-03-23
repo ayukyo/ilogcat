@@ -163,36 +163,15 @@ impl ExportManager {
             &[("Cancel", ResponseType::Cancel), ("Export", ResponseType::Accept)],
         );
 
-        // 添加格式选择
-        let format_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
-        let label = gtk4::Label::new(Some("Format:"));
-        format_box.append(&label);
-
-        let format_combo = gtk4::ComboBoxText::new();
-        format_combo.append(Some("text"), "Text (.txt)");
-        format_combo.append(Some("csv"), "CSV (.csv)");
-        format_combo.set_active_id(Some("text"));
-        format_box.append(&format_combo);
-
-        dialog.set_extra_widget(Some(&format_box));
-
         // 设置默认文件名
         dialog.set_current_name("ilogcat_export.txt");
 
-        // 监听格式变化
-        format_combo.connect_changed(clone!(dialog => move |combo| {
-            let name = if combo.active_id().as_deref() == Some("csv") {
-                "ilogcat_export.csv"
-            } else {
-                "ilogcat_export.txt"
-            };
-            dialog.set_current_name(name);
-        }));
-
-        dialog.connect_response(move |dialog, response| {
+        let dialog_weak = dialog.downgrade();
+        dialog.connect_response(move |dlg, response| {
             if response == ResponseType::Accept {
-                if let Some(path) = dialog.file().and_then(|f| f.path()) {
-                    let format = if format_combo.active_id().as_deref() == Some("csv") {
+                if let Some(path) = dlg.file().and_then(|f| f.path()) {
+                    // 根据扩展名判断格式
+                    let format = if path.extension().map(|e| e == "csv").unwrap_or(false) {
                         ExportFormat::Csv
                     } else {
                         ExportFormat::Text
@@ -200,7 +179,7 @@ impl ExportManager {
                     callback(format, path.to_string_lossy().to_string());
                 }
             }
-            dialog.close();
+            dlg.close();
         });
 
         dialog.show();
