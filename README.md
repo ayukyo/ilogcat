@@ -183,14 +183,22 @@ ilogcat/
 
 ## Roadmap
 
-### v0.3.0 (Planned)
+### v0.3.0 (Released)
 
-- [ ] Improved tab titles showing log source names
-- [ ] SSH connection status indicator
-- [ ] SSH interactive command input
-- [ ] Filter functionality fixes
-- [ ] Dark/Light theme switcher
-- [ ] Chinese/English language support
+- [x] Improved tab titles showing log source names
+- [x] SSH connection status indicator (🟢/🔴)
+- [x] Filter functionality fixes
+- [x] Dark/Light theme switcher
+- [x] Chinese/English language support
+- [x] Quick search with Ctrl+F (highlight & navigation)
+
+### v0.4.0 (Planned)
+
+- [ ] Log export to file/CSV
+- [ ] Bookmark important log lines
+- [ ] Enhanced regex filtering (exclude mode, multiple patterns)
+- [ ] Log statistics panel
+- [ ] Smart auto-scroll (pause when scrolling up)
 
 ## License
 
