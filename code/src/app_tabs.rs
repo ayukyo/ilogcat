@@ -707,20 +707,21 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         let window_ref = window_clone.clone();
         lang_btn.connect_clicked(move |_| {
             let state_ref = state_ref.clone();
-            let window_ref2 = window_ref.clone();
+            let window_ref = window_ref.clone();
             let current_lang = state_ref.borrow().config.ui.language.clone();
             
-            crate::ui::dialogs::show_language_dialog(&window_ref2, &current_lang, move |lang| {
+            crate::ui::dialogs::show_language_dialog(&window_ref, &current_lang, move |lang| {
+                let window_ref = window_ref.clone();
                 let mut state = state_ref.borrow_mut();
                 state.config.ui.set_language(&lang);
                 
                 // 保存配置
                 if let Err(e) = state.config.save() {
-                    crate::ui::dialogs::show_error_dialog(&window_ref2, "Save Failed", 
+                    crate::ui::dialogs::show_error_dialog(&window_ref, "Save Failed", 
                         &format!("Failed to save language setting:\n{}", e));
                 } else {
                     let lang_name = if lang == "zh" { "中文" } else { "English" };
-                    crate::ui::dialogs::show_info_dialog(&window_ref2, "Language Changed", 
+                    crate::ui::dialogs::show_info_dialog(&window_ref, "Language Changed", 
                         &format!("Language set to {}.\nPlease restart the application to apply the changes.", lang_name));
                 }
             });
@@ -731,20 +732,21 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         let window_ref = window_clone.clone();
         theme_btn.connect_clicked(move |_| {
             let state_ref = state_ref.clone();
-            let window_ref2 = window_ref.clone();
+            let window_ref = window_ref.clone();
             let current_theme = state_ref.borrow().config.ui.current_theme().to_string();
             
-            crate::ui::dialogs::show_theme_dialog(&window_ref2, &current_theme, move |theme| {
+            crate::ui::dialogs::show_theme_dialog(&window_ref, &current_theme, move |theme| {
+                let window_ref = window_ref.clone();
                 let mut state = state_ref.borrow_mut();
                 state.config.ui.set_theme(&theme);
                 
                 // 保存配置
                 if let Err(e) = state.config.save() {
-                    crate::ui::dialogs::show_error_dialog(&window_ref2, "Save Failed", 
+                    crate::ui::dialogs::show_error_dialog(&window_ref, "Save Failed", 
                         &format!("Failed to save theme setting:\n{}", e));
                 } else {
                     let theme_name = if theme == "dark" { "Dark" } else { "Light" };
-                    crate::ui::dialogs::show_info_dialog(&window_ref2, "Theme Changed", 
+                    crate::ui::dialogs::show_info_dialog(&window_ref, "Theme Changed", 
                         &format!("Theme set to {}.\nPlease restart the application to apply the changes.", theme_name));
                 }
             });
