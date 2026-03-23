@@ -258,8 +258,8 @@ impl TabManager {
     }
 
     /// 创建标签标题
-    fn create_tab_label(&self, name: &str, tab_id: usize) -> Box {
-        let hbox = Box::new(Orientation::Horizontal, 6);
+    fn create_tab_label(&self, name: &str, tab_id: usize) -> gtk4::Box {
+        let hbox = gtk4::Box::new(Orientation::Horizontal, 6);
         
         let label = Label::new(Some(name));
         hbox.append(&label);
