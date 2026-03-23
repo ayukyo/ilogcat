@@ -14,12 +14,15 @@ use crate::filter::Filter;
 use crate::config::Config;
 use crate::ui::tabs::{TabManager, LogTab};
 use crate::ui::TabSourceType as SourceType;
+use crate::ui::{SearchBar, SearchManager};
 use crate::config::SshServerConfig;
 
 /// 应用状态（支持多标签页）
 pub struct AppState {
     pub config: Config,
     pub tab_manager: Option<Rc<RefCell<TabManager>>>,
+    pub search_bar: Option<Rc<RefCell<SearchBar>>>,
+    pub search_manager: Rc<RefCell<SearchManager>>,
 }
 
 impl AppState {
@@ -27,6 +30,8 @@ impl AppState {
         Self {
             config: Config::load().unwrap_or_default(),
             tab_manager: None,
+            search_bar: None,
+            search_manager: Rc::new(RefCell::new(SearchManager::new())),
         }
     }
 }
@@ -56,6 +61,16 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     let filter_bar = create_filter_bar(state.clone());
     vbox.append(&filter_bar);
 
+    // 创建搜索栏（默认隐藏）
+    let search_bar = Rc::new(RefCell::new(SearchBar::new()));
+    search_bar.borrow().widget().set_visible(false);
+    vbox.append(search_bar.borrow().widget());
+    
+    {
+        let mut state_ref = state.borrow_mut();
+        state_ref.search_bar = Some(search_bar.clone());
+    }
+
     // 创建Notebook（标签页容器）
     let notebook = Notebook::builder()
         .hexpand(true)
@@ -70,7 +85,10 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     }
     
     // 创建默认标签页
-    tab_manager.borrow_mut().create_tab("Log 1");
+    let first_tab = tab_manager.borrow_mut().create_tab("Log 1");
+    
+    // 初始化搜索标签
+    state.borrow().search_manager.borrow_mut().setup_tags(&first_tab.borrow().text_buffer);
     
     vbox.append(&notebook);
 
@@ -81,6 +99,9 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     vbox.append(&status_bar);
 
     window.set_child(Some(&vbox));
+
+    // 设置搜索栏事件
+    setup_search_bar_events(state.clone(), search_bar.clone(), tab_manager.clone());
 
     // 设置快捷键
     setup_shortcuts(&window, state.clone(), tab_manager.clone());
@@ -102,11 +123,147 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     window.present();
 }
 
+/// 设置搜索栏事件
+fn setup_search_bar_events(
+    state: Rc<RefCell<AppState>>,
+    search_bar: Rc<RefCell<SearchBar>>,
+    tab_manager: Rc<RefCell<TabManager>>,
+) {
+    // 搜索文本变化事件
+    let state_clone = state.clone();
+    let tab_manager_clone = tab_manager.clone();
+    search_bar.borrow().connect_search_changed(move |text| {
+        if let Some(tab) = tab_manager_clone.borrow().current_tab() {
+            let buffer = tab.borrow().text_buffer.clone();
+            let count = state_clone.borrow().search_manager.borrow_mut().search(&buffer, text, false);
+            
+            if let Some(ref sb) = state_clone.borrow().search_bar {
+                sb.borrow().set_total_matches(count);
+                sb.borrow().set_current_match(0);
+                
+                // 滚动到第一个匹配项
+                if count > 0 {
+                    if let Some(iter) = state_clone.borrow().search_manager.borrow_mut().navigate_to_match(&buffer, 0) {
+                        let mark = buffer.create_mark(None, &iter, true);
+                        tab.borrow().text_view.scroll_to_mark(&mark, 0.0, true, 0.0, 0.5);
+                    }
+                }
+            }
+        }
+    });
+
+    // 上一个按钮
+    let state_clone = state.clone();
+    let tab_manager_clone = tab_manager.clone();
+    search_bar.borrow().connect_prev_clicked(move || {
+        if let Some(ref sb) = state_clone.borrow().search_bar {
+            let current = sb.borrow().current_match();
+            let total = sb.borrow().total_matches();
+            if total > 0 {
+                let new_index = if current > 0 { current - 1 } else { total - 1 };
+                sb.borrow().set_current_match(new_index);
+                
+                if let Some(tab) = tab_manager_clone.borrow().current_tab() {
+                    let buffer = tab.borrow().text_buffer.clone();
+                    if let Some(iter) = state_clone.borrow().search_manager.borrow_mut().navigate_to_match(&buffer, new_index) {
+                        let mark = buffer.create_mark(None, &iter, true);
+                        tab.borrow().text_view.scroll_to_mark(&mark, 0.0, true, 0.0, 0.5);
+                    }
+                }
+            }
+        }
+    });
+
+    // 下一个按钮
+    let state_clone = state.clone();
+    let tab_manager_clone = tab_manager.clone();
+    search_bar.borrow().connect_next_clicked(move || {
+        if let Some(ref sb) = state_clone.borrow().search_bar {
+            let current = sb.borrow().current_match();
+            let total = sb.borrow().total_matches();
+            if total > 0 {
+                let new_index = (current + 1) % total;
+                sb.borrow().set_current_match(new_index);
+                
+                if let Some(tab) = tab_manager_clone.borrow().current_tab() {
+                    let buffer = tab.borrow().text_buffer.clone();
+                    if let Some(iter) = state_clone.borrow().search_manager.borrow_mut().navigate_to_match(&buffer, new_index) {
+                        let mark = buffer.create_mark(None, &iter, true);
+                        tab.borrow().text_view.scroll_to_mark(&mark, 0.0, true, 0.0, 0.5);
+                    }
+                }
+            }
+        }
+    });
+
+    // 关闭按钮
+    let state_clone = state.clone();
+    let tab_manager_clone = tab_manager.clone();
+    search_bar.borrow().connect_close_clicked(move || {
+        if let Some(ref sb) = state_clone.borrow().search_bar {
+            sb.borrow().hide();
+            sb.borrow().clear();
+        }
+        if let Some(tab) = tab_manager_clone.borrow().current_tab() {
+            let buffer = tab.borrow().text_buffer.clone();
+            state_clone.borrow().search_manager.borrow_mut().clear_highlights(&buffer);
+        }
+        state_clone.borrow().search_manager.borrow_mut().clear();
+    });
+
+    // 回车键 - 跳转到下一个匹配
+    let state_clone = state.clone();
+    let tab_manager_clone = tab_manager.clone();
+    search_bar.borrow().connect_activate(move || {
+        if let Some(ref sb) = state_clone.borrow().search_bar {
+            let current = sb.borrow().current_match();
+            let total = sb.borrow().total_matches();
+            if total > 0 {
+                let new_index = (current + 1) % total;
+                sb.borrow().set_current_match(new_index);
+                
+                if let Some(tab) = tab_manager_clone.borrow().current_tab() {
+                    let buffer = tab.borrow().text_buffer.clone();
+                    if let Some(iter) = state_clone.borrow().search_manager.borrow_mut().navigate_to_match(&buffer, new_index) {
+                        let mark = buffer.create_mark(None, &iter, true);
+                        tab.borrow().text_view.scroll_to_mark(&mark, 0.0, true, 0.0, 0.5);
+                    }
+                }
+            }
+        }
+    });
+}
+
 /// 设置键盘快捷键
 fn setup_shortcuts(window: &ApplicationWindow, state: Rc<RefCell<AppState>>, tab_manager: Rc<RefCell<TabManager>>) {
     let key_controller = gtk4::EventControllerKey::new();
     
     key_controller.connect_key_pressed(move |_, key, _keycode, modifiers| {
+        // Ctrl+F - 打开搜索栏
+        if modifiers.contains(ModifierType::CONTROL_MASK) 
+            && (key == gtk4::gdk::Key::f || key == gtk4::gdk::Key::F) {
+            if let Some(ref sb) = state.borrow().search_bar {
+                sb.borrow().show();
+            }
+            return glib::Propagation::Stop;
+        }
+        
+        // Esc - 关闭搜索栏
+        if key == gtk4::gdk::Key::Escape {
+            if let Some(ref sb) = state.borrow().search_bar {
+                if sb.borrow().is_visible() {
+                    sb.borrow().hide();
+                    sb.borrow().clear();
+                    if let Some(tab) = tab_manager.borrow().current_tab() {
+                        let buffer = tab.borrow().text_buffer.clone();
+                        state.borrow().search_manager.borrow_mut().clear_highlights(&buffer);
+                    }
+                    state.borrow().search_manager.borrow_mut().clear();
+                    return glib::Propagation::Stop;
+                }
+            }
+        }
+        
         // Ctrl+Tab - 切换到下一个标签页
         if modifiers.contains(ModifierType::CONTROL_MASK) && key == gtk4::gdk::Key::Tab {
             tab_manager.borrow().next_tab();
