@@ -128,6 +128,16 @@
       "name": "Filter 功能修复",
       "description": "修复 Filter 过滤不起作用的问题",
       "priority": "high"
+    },
+    {
+      "name": "主题切换功能",
+      "description": "设置中增加黑白主题切换（亮色/暗色模式）",
+      "priority": "medium"
+    },
+    {
+      "name": "多语言支持",
+      "description": "设置中增加中英文语言切换",
+      "priority": "medium"
     }
   ],
   "deliverables": {
