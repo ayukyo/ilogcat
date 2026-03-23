@@ -315,4 +315,55 @@ impl Config {
         }
         Ok(())
     }
+    
+    /// 导出配置到指定路径
+    pub fn export_to(&self, path: &PathBuf) -> Result<()> {
+        let content = toml::to_string_pretty(self)?;
+        std::fs::write(path, content)?;
+        Ok(())
+    }
+    
+    /// 从指定路径导入配置
+    pub fn import_from(path: &PathBuf) -> Result<Self> {
+        let content = std::fs::read_to_string(path)?;
+        let config: Config = toml::from_str(&content)?;
+        Ok(config)
+    }
+    
+    /// 合并导入的配置（保留现有 SSH 服务器和过滤器）
+    pub fn merge(&mut self, other: Config) {
+        // 合并 SSH 服务器（避免重复）
+        for server in other.ssh_servers {
+            if !self.ssh_servers.iter().any(|s| s.name == server.name) {
+                self.ssh_servers.push(server);
+            }
+        }
+        
+        // 合并保存的过滤器（避免重复）
+        for filter in other.saved_filters {
+            if !self.saved_filters.iter().any(|f| f.name == filter.name) {
+                self.saved_filters.push(filter);
+            }
+        }
+        
+        // 使用导入的自定义关键字（如果非默认）
+        if other.custom_level_keywords != CustomLevelKeywords::default() {
+            self.custom_level_keywords = other.custom_level_keywords;
+        }
+        
+        // 使用导入的颜色配置（如果非默认）
+        if other.colors != ColorConfig::default() {
+            self.colors = other.colors;
+        }
+        
+        // 使用导入的 UI 配置（如果非默认）
+        if other.ui != UiConfig::default() {
+            self.ui = other.ui;
+        }
+        
+        // 使用导入的通用配置（如果非默认）
+        if other.general != GeneralConfig::default() {
+            self.general = other.general;
+        }
+    }
 }

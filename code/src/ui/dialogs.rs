@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 
 use crate::ssh::config::{SshConfig, AuthMethod};
-use crate::config::{CustomLevelKeywords, SshServerConfig};
-use crate::config::Config;
+use crate::config::{CustomLevelKeywords, SshServerConfig, Config};
+use std::path::Path;
 
 /// 显示 SSH 连接对话框
 pub fn show_ssh_dialog<F>(parent: &ApplicationWindow, on_connect: F)
@@ -328,6 +328,95 @@ pub fn show_custom_keywords_dialog<F>(
             }
             
             on_save(new_keywords);
+        }
+        dialog.close();
+    });
+
+    dialog.present();
+}
+
+/// 显示设置导出对话框
+pub fn show_export_settings_dialog<F>(parent: &ApplicationWindow, on_export: F)
+where
+    F: Fn(PathBuf) + 'static,
+{
+    let dialog = FileChooserDialog::new(
+        Some("Export Settings"),
+        Some(parent),
+        FileChooserAction::Save,
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Export", ResponseType::Accept),
+        ],
+    );
+    
+    // 设置默认文件名
+    dialog.set_current_name("ilogcat-settings.toml");
+    
+    // 添加文件过滤器
+    let filter = gtk4::FileFilter::new();
+    filter.set_name(Some("TOML files"));
+    filter.add_pattern("*.toml");
+    dialog.add_filter(&filter);
+    
+    let filter_all = gtk4::FileFilter::new();
+    filter_all.set_name(Some("All files"));
+    filter_all.add_pattern("*");
+    dialog.add_filter(&filter_all);
+
+    dialog.connect_response(move |dialog, response| {
+        if response == ResponseType::Accept {
+            if let Some(file) = dialog.file() {
+                if let Some(path) = file.path() {
+                    // 确保文件扩展名是 .toml
+                    let path = if path.extension().is_none() {
+                        path.with_extension("toml")
+                    } else {
+                        path
+                    };
+                    on_export(path);
+                }
+            }
+        }
+        dialog.close();
+    });
+
+    dialog.present();
+}
+
+/// 显示设置导入对话框
+pub fn show_import_settings_dialog<F>(parent: &ApplicationWindow, on_import: F)
+where
+    F: Fn(PathBuf) + 'static,
+{
+    let dialog = FileChooserDialog::new(
+        Some("Import Settings"),
+        Some(parent),
+        FileChooserAction::Open,
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Import", ResponseType::Accept),
+        ],
+    );
+    
+    // 添加文件过滤器
+    let filter = gtk4::FileFilter::new();
+    filter.set_name(Some("TOML files"));
+    filter.add_pattern("*.toml");
+    dialog.add_filter(&filter);
+    
+    let filter_all = gtk4::FileFilter::new();
+    filter_all.set_name(Some("All files"));
+    filter_all.add_pattern("*");
+    dialog.add_filter(&filter_all);
+
+    dialog.connect_response(move |dialog, response| {
+        if response == ResponseType::Accept {
+            if let Some(file) = dialog.file() {
+                if let Some(path) = file.path() {
+                    on_import(path);
+                }
+            }
         }
         dialog.close();
     });

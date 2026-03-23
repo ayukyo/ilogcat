@@ -247,6 +247,16 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         .build();
     toolbar.append(&pause_btn);
 
+    let sep4 = Separator::new(Orientation::Vertical);
+    toolbar.append(&sep4);
+
+    // 设置按钮
+    let settings_btn = Button::builder()
+        .label("Settings")
+        .tooltip_text("Export/Import settings")
+        .build();
+    toolbar.append(&settings_btn);
+
     // 新建标签页按钮事件
     let state_clone = state.clone();
     new_tab_btn.connect_clicked(move |_| {
@@ -419,6 +429,99 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                 pause_btn_clone.set_label(if paused { "Resume" } else { "Pause" });
             }
         }
+    });
+
+    // 设置按钮事件 - 显示导出/导入菜单
+    let state_clone = state.clone();
+    let window_clone = window.clone();
+    settings_btn.connect_clicked(move |_| {
+        // 创建设置菜单对话框
+        let dialog = gtk4::Dialog::builder()
+            .title("Settings")
+            .transient_for(&window_clone)
+            .modal(true)
+            .default_width(300)
+            .build();
+        
+        let content = dialog.content_area();
+        content.set_spacing(12);
+        content.set_margin_top(12);
+        content.set_margin_bottom(12);
+        content.set_margin_start(12);
+        content.set_margin_end(12);
+        
+        // 导出按钮
+        let export_btn = Button::builder()
+            .label("Export Settings")
+            .tooltip_text("Export all settings to a file")
+            .hexpand(true)
+            .build();
+        content.append(&export_btn);
+        
+        // 导入按钮
+        let import_btn = Button::builder()
+            .label("Import Settings")
+            .tooltip_text("Import settings from a file")
+            .hexpand(true)
+            .build();
+        content.append(&import_btn);
+        
+        // 关闭按钮
+        dialog.add_button("Close", gtk4::ResponseType::Close);
+        
+        // 导出按钮事件
+        let state_ref = state_clone.clone();
+        let window_ref = window_clone.clone();
+        export_btn.connect_clicked(move |_| {
+            let state_ref = state_ref.clone();
+            crate::ui::dialogs::show_export_settings_dialog(&window_ref, move |path| {
+                let state = state_ref.borrow();
+                match state.config.export_to(&path) {
+                    Ok(_) => {
+                        crate::ui::dialogs::show_info_dialog(&window_ref, "Export Successful", 
+                            &format!("Settings exported to:\n{}", path.display()));
+                    }
+                    Err(e) => {
+                        crate::ui::dialogs::show_error_dialog(&window_ref, "Export Failed", 
+                            &format!("Failed to export settings:\n{}", e));
+                    }
+                }
+            });
+        });
+        
+        // 导入按钮事件
+        let state_ref = state_clone.clone();
+        let window_ref = window_clone.clone();
+        import_btn.connect_clicked(move |_| {
+            let state_ref = state_ref.clone();
+            crate::ui::dialogs::show_import_settings_dialog(&window_ref, move |path| {
+                match Config::import_from(&path) {
+                    Ok(imported_config) => {
+                        let mut state = state_ref.borrow_mut();
+                        // 合并配置
+                        state.config.merge(imported_config);
+                        // 保存合并后的配置
+                        if let Err(e) = state.config.save() {
+                            crate::ui::dialogs::show_error_dialog(&window_ref, "Save Failed", 
+                                &format!("Failed to save imported settings:\n{}", e));
+                        } else {
+                            crate::ui::dialogs::show_info_dialog(&window_ref, "Import Successful", 
+                                "Settings imported and merged successfully.\nSome changes may require restart.");
+                        }
+                    }
+                    Err(e) => {
+                        crate::ui::dialogs::show_error_dialog(&window_ref, "Import Failed", 
+                            &format!("Failed to import settings:\n{}", e));
+                    }
+                }
+            });
+        });
+        
+        dialog.connect_response(|dialog, _| {
+            dialog.close();
+        });
+        
+        dialog.present();
     });
 
     toolbar
