@@ -132,13 +132,20 @@ jobs:
           dpkg-deb --build ilogcat-release
           mv ilogcat-release.deb ilogcat_0.1.0_amd64.deb
 
+      - name: Prepare artifacts
+        working-directory: code
+        run: |
+          mkdir -p ../artifacts
+          cp target/release/ilogcat ../artifacts/
+          cp ilogcat_0.1.0_amd64.deb ../artifacts/
+
       - name: Upload release binary
         uses: actions/upload-artifact@v4
         with:
           name: ilogcat-release
           path: |
-            code/target/release/ilogcat
-            code/ilogcat_0.1.0_amd64.deb
+            artifacts/ilogcat
+            artifacts/ilogcat_0.1.0_amd64.deb
           retention-days: 30
 
   create-release:
@@ -156,6 +163,11 @@ jobs:
         with:
           name: ilogcat-release
           path: release/
+
+      - name: List downloaded files
+        run: |
+          echo "Downloaded artifacts:"
+          find release/ -type f -ls
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -195,8 +207,8 @@ jobs:
             ilogcat
             ```
           files: |
-            release/ilogcat
-            release/ilogcat_0.1.0_amd64.deb
+            release/artifacts/ilogcat
+            release/artifacts/ilogcat_0.1.0_amd64.deb
           draft: false
           prerelease: false
         env:
