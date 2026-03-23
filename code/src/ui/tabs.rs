@@ -28,6 +28,9 @@ pub struct LogTab {
     // 统计信息
     level_counts: HashMap<LogLevel, usize>,
     start_time: std::time::Instant,
+    // 智能自动滚动
+    pub auto_scroll_enabled: Arc<AtomicBool>,  // 是否启用自动滚动
+    pub user_scrolled_up: Arc<AtomicBool>,     // 用户是否向上滚动查看历史
 }
 
 /// 日志源类型
@@ -69,7 +72,14 @@ impl LogTab {
             tab_label_widget: None,
             level_counts: HashMap::new(),
             start_time: std::time::Instant::now(),
-        }
+            auto_scroll_enabled: Arc::new(AtomicBool::new(true)),
+            user_scrolled_up: Arc::new(AtomicBool::new(false)),
+        };
+        
+        // 设置智能滚动事件监听
+        tab.setup_smart_scroll();
+        
+        tab
     }
 
     /// 获取统计信息
@@ -245,6 +255,86 @@ impl LogTab {
 
     /// 滚动到末尾
     fn scroll_to_end(&self) {
+        // 只有启用了自动滚动且用户没有向上滚动时才滚动
+        if !self.auto_scroll_enabled.load(Ordering::SeqCst) {
+            return;
+        }
+        if self.user_scrolled_up.load(Ordering::SeqCst) {
+            return;
+        }
+        
+        let mut end_iter = self.text_buffer.end_iter();
+        self.text_view.scroll_to_iter(&mut end_iter, 0.0, false, 0.0, 0.0);
+    }
+    
+    /// 设置智能滚动事件监听
+    fn setup_smart_scroll(&self) {
+        let user_scrolled_up = self.user_scrolled_up.clone();
+        let auto_scroll_enabled = self.auto_scroll_enabled.clone();
+        let text_view = self.text_view.clone();
+        
+        // 创建滚动控制器
+        let scroll_controller = gtk4::EventControllerScroll::new(
+            gtk4::EventControllerScrollFlags::VERTICAL
+        );
+        
+        scroll_controller.connect_scroll(move |_, _dx, dy| {
+            // dy > 0 表示向下滚动，dy < 0 表示向上滚动
+            if dy < 0.0 {
+                // 用户向上滚动，暂停自动滚动
+                user_scrolled_up.store(true, Ordering::SeqCst);
+            } else {
+                // 用户向下滚动，检查是否到达底部
+                let vadj = text_view.vadjustment();
+                let current = vadj.value();
+                let upper = vadj.upper();
+                let page_size = vadj.page_size();
+                
+                // 如果接近底部（在50像素内），恢复自动滚动
+                if current + page_size >= upper - 50.0 {
+                    user_scrolled_up.store(false, Ordering::SeqCst);
+                }
+            }
+            glib::Propagation::Proceed
+        });
+        
+        self.text_view.add_controller(scroll_controller);
+        
+        // 监听垂直调整值变化，检测是否滚动到底部
+        let vadj = self.text_view.vadjustment();
+        let user_scrolled_up_clone = self.user_scrolled_up.clone();
+        
+        vadj.connect_value_changed(move |adj| {
+            let current = adj.value();
+            let upper = adj.upper();
+            let page_size = adj.page_size();
+            
+            // 如果滚动到底部附近，重置用户滚动标志
+            if current + page_size >= upper - 10.0 {
+                user_scrolled_up_clone.store(false, Ordering::SeqCst);
+            }
+        });
+    }
+    
+    /// 切换自动滚动状态
+    pub fn toggle_auto_scroll(&mut self) {
+        let current = self.auto_scroll_enabled.load(Ordering::SeqCst);
+        self.auto_scroll_enabled.store(!current, Ordering::SeqCst);
+        
+        // 如果重新启用自动滚动，重置用户滚动标志
+        if !current {
+            self.user_scrolled_up.store(false, Ordering::SeqCst);
+        }
+    }
+    
+    /// 获取自动滚动状态
+    pub fn is_auto_scroll_enabled(&self) -> bool {
+        self.auto_scroll_enabled.load(Ordering::SeqCst)
+    }
+    
+    /// 手动跳转到最新日志（恢复自动滚动）
+    pub fn jump_to_latest(&self) {
+        self.user_scrolled_up.store(false, Ordering::SeqCst);
         let mut end_iter = self.text_buffer.end_iter();
         self.text_view.scroll_to_iter(&mut end_iter, 0.0, false, 0.0, 0.0);
     }

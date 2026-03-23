@@ -430,6 +430,23 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
     let sep4 = Separator::new(Orientation::Vertical);
     toolbar.append(&sep4);
 
+    // 自动滚动按钮
+    let auto_scroll_btn = Button::builder()
+        .label("⬇️ Auto")
+        .tooltip_text("Toggle auto-scroll (enabled by default, pauses when scrolling up)")
+        .build();
+    toolbar.append(&auto_scroll_btn);
+
+    // 跳转到最新按钮
+    let jump_latest_btn = Button::builder()
+        .label("Latest")
+        .tooltip_text("Jump to latest log and resume auto-scroll")
+        .build();
+    toolbar.append(&jump_latest_btn);
+
+    let sep5 = Separator::new(Orientation::Vertical);
+    toolbar.append(&sep5);
+
     // 统计按钮
     let stats_btn = Button::builder()
         .label("Stats")
@@ -648,6 +665,35 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                 tab.borrow_mut().toggle_pause();
                 let paused = tab.borrow().is_paused();
                 pause_btn_clone.set_label(if paused { "Resume" } else { "Pause" });
+            }
+        }
+    });
+
+    // 自动滚动按钮事件
+    let state_clone = state.clone();
+    let auto_scroll_btn_clone = auto_scroll_btn.clone();
+    auto_scroll_btn.connect_clicked(move |_| {
+        if let Some(ref tm) = state_clone.borrow().tab_manager {
+            if let Some(tab) = tm.borrow().current_tab() {
+                tab.borrow_mut().toggle_auto_scroll();
+                let enabled = tab.borrow().is_auto_scroll_enabled();
+                auto_scroll_btn_clone.set_label(if enabled { "⬇️ Auto" } else { "⏸️ Auto" });
+            }
+        }
+    });
+
+    // 跳转到最新按钮事件
+    let state_clone = state.clone();
+    let auto_scroll_btn_clone = auto_scroll_btn.clone();
+    jump_latest_btn.connect_clicked(move |_| {
+        if let Some(ref tm) = state_clone.borrow().tab_manager {
+            if let Some(tab) = tm.borrow().current_tab() {
+                tab.borrow().jump_to_latest();
+                // 确保自动滚动是启用的
+                if !tab.borrow().is_auto_scroll_enabled() {
+                    tab.borrow_mut().toggle_auto_scroll();
+                }
+                auto_scroll_btn_clone.set_label("⬇️ Auto");
             }
         }
     });
