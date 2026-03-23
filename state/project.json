@@ -12,9 +12,9 @@
   "priority": 1,
   "createdAt": "2026-03-22T21:30:00Z",
   "lastActivity": "2026-03-23T06:32:00Z",
-  "progress": 0,
+  "progress": 25,
   "currentStage": "第二期 - 功能增强",
-  "currentTask": "等待开发",
+  "currentTask": "自定义日志级别关键字功能开发完成", 
   "stages": [
     {
       "name": "需求分析",
@@ -92,14 +92,10 @@
     "添加SSH配置自动保存",
     "编写使用文档",
     "修复 Rust 借用冲突错误 (E0502) - 4次提交",
-    "GitHub Actions 构建成功 ✅"
+    "GitHub Actions 构建成功 ✅",
+    "第二期功能增强 - 自定义日志级别关键字功能"
   ],
   "nextTasks": [
-    {
-      "name": "自定义日志级别关键字",
-      "description": "支持用户添加自定义关键字作为级别标识，如 [i]、[info] 等",
-      "priority": "high"
-    },
     {
       "name": "多日志窗口标签页",
       "description": "支持多日志窗口，通过标签栏点击切换，快捷键 Ctrl+Tab",
@@ -128,6 +124,7 @@
     "所有 Rust 借用冲突已修复，构建通过",
     "进度：78% → 85%",
     "GitHub Release v0.1.0 已创建",
-    "项目完成并发布"
+    "项目完成并发布",
+    "第二期功能增强启动：自定义日志级别关键字功能已完成"
   ]
 }
