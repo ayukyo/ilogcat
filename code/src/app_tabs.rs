@@ -475,16 +475,16 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         export_btn.connect_clicked(move |_| {
             let state_ref = state_ref.clone();
             let window_ref = window_ref.clone();
-            crate::ui::dialogs::show_export_settings_dialog(&window_ref, move |path| {
-                let window_ref2 = window_ref.clone();
+            let window_ref_for_dialog = window_ref.clone();
+            crate::ui::dialogs::show_export_settings_dialog(&window_ref_for_dialog, move |path| {
                 let state = state_ref.borrow();
                 match state.config.export_to(&path) {
                     Ok(_) => {
-                        crate::ui::dialogs::show_info_dialog(&window_ref2, "Export Successful", 
+                        crate::ui::dialogs::show_info_dialog(&window_ref, "Export Successful", 
                             &format!("Settings exported to:\n{}", path.display()));
                     }
                     Err(e) => {
-                        crate::ui::dialogs::show_error_dialog(&window_ref2, "Export Failed", 
+                        crate::ui::dialogs::show_error_dialog(&window_ref, "Export Failed", 
                             &format!("Failed to export settings:\n{}", e));
                     }
                 }
@@ -497,8 +497,8 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         import_btn.connect_clicked(move |_| {
             let state_ref = state_ref.clone();
             let window_ref = window_ref.clone();
-            crate::ui::dialogs::show_import_settings_dialog(&window_ref, move |path| {
-                let window_ref2 = window_ref.clone();
+            let window_ref_for_dialog = window_ref.clone();
+            crate::ui::dialogs::show_import_settings_dialog(&window_ref_for_dialog, move |path| {
                 match Config::import_from(&path) {
                     Ok(imported_config) => {
                         let mut state = state_ref.borrow_mut();
@@ -506,15 +506,15 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                         state.config.merge(imported_config);
                         // 保存合并后的配置
                         if let Err(e) = state.config.save() {
-                            crate::ui::dialogs::show_error_dialog(&window_ref2, "Save Failed", 
+                            crate::ui::dialogs::show_error_dialog(&window_ref, "Save Failed", 
                                 &format!("Failed to save imported settings:\n{}", e));
                         } else {
-                            crate::ui::dialogs::show_info_dialog(&window_ref2, "Import Successful", 
+                            crate::ui::dialogs::show_info_dialog(&window_ref, "Import Successful", 
                                 "Settings imported and merged successfully.\nSome changes may require restart.");
                         }
                     }
                     Err(e) => {
-                        crate::ui::dialogs::show_error_dialog(&window_ref2, "Import Failed", 
+                        crate::ui::dialogs::show_error_dialog(&window_ref, "Import Failed", 
                             &format!("Failed to import settings:\n{}", e));
                     }
                 }
