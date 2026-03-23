@@ -281,18 +281,22 @@ impl FilterDialog {
         content.append(&input_box);
 
         // 添加按钮回调
-        add_btn.connect_clicked(clone!(list_box, patterns, type_combo, pattern_entry => move |_| {
-            let pattern_text = pattern_entry.text().to_string();
+        let list_box_clone = list_box.clone();
+        let patterns_clone = patterns.clone();
+        let type_combo_clone = type_combo.clone();
+        let pattern_entry_clone = pattern_entry.clone();
+        add_btn.connect_clicked(move |_| {
+            let pattern_text = pattern_entry_clone.text().to_string();
             if !pattern_text.is_empty() {
-                let pattern = if type_combo.active_id().as_deref() == Some("exclude") {
+                let pattern = if type_combo_clone.active_id().as_deref() == Some("exclude") {
                     FilterPattern::Exclude(pattern_text)
                 } else {
                     FilterPattern::Include(pattern_text)
                 };
-                Self::add_pattern_row(&list_box, &patterns, pattern);
-                pattern_entry.set_text("");
+                FilterDialog::add_pattern_row(&list_box_clone, &patterns_clone, pattern);
+                pattern_entry_clone.set_text("");
             }
-        }));
+        });
 
         dialog.add_button("Cancel", gtk4::ResponseType::Cancel);
         dialog.add_button("Apply", gtk4::ResponseType::Accept);
