@@ -1,15 +1,42 @@
 use ssh2::{Session, Channel};
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpStream;
+use std::net::{TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
-use anyhow::Result;
+use std::time::Duration;
+use anyhow::{Result, Context};
 
 use crate::ssh::config::SshConfig;
+
+/// 连接状态
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ConnectionState {
+    Disconnected,
+    Connecting,
+    Authenticating,
+    Connected,
+    Failed,
+}
+
+impl std::fmt::Display for ConnectionState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConnectionState::Disconnected => write!(f, "Disconnected"),
+            ConnectionState::Connecting => write!(f, "Connecting..."),
+            ConnectionState::Authenticating => write!(f, "Authenticating..."),
+            ConnectionState::Connected => write!(f, "Connected"),
+            ConnectionState::Failed => write!(f, "Failed"),
+        }
+    }
+}
 
 /// SSH 客户端
 pub struct SshClient {
     config: SshConfig,
     session: Option<Session>,
+    state: ConnectionState,
+    last_error: Option<String>,
+    connect_timeout: Duration,
+    retry_count: u32,
 }
 
 impl SshClient {
@@ -18,44 +45,141 @@ impl SshClient {
         Self {
             config,
             session: None,
+            state: ConnectionState::Disconnected,
+            last_error: None,
+            connect_timeout: Duration::from_secs(10),
+            retry_count: 0,
         }
     }
 
-    /// 连接到 SSH 服务器
+    /// 设置连接超时
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.connect_timeout = timeout;
+    }
+
+    /// 获取当前连接状态
+    pub fn state(&self) -> ConnectionState {
+        self.state
+    }
+
+    /// 获取最后一次错误信息
+    pub fn last_error(&self) -> Option<&str> {
+        self.last_error.as_deref()
+    }
+
+    /// 获取重试次数
+    pub fn retry_count(&self) -> u32 {
+        self.retry_count
+    }
+
+    /// 连接到 SSH 服务器（带重试机制）
     pub fn connect(&mut self) -> Result<()> {
+        self.connect_with_retry(3)
+    }
+
+    /// 连接到 SSH 服务器（带重试）
+    fn connect_with_retry(&mut self, max_retries: u32) -> Result<()> {
+        let mut last_error = None;
+
+        for attempt in 0..max_retries {
+            self.retry_count = attempt;
+            
+            match self.try_connect() {
+                Ok(()) => {
+                    self.retry_count = 0;
+                    return Ok(());
+                }
+                Err(e) => {
+                    last_error = Some(e);
+                    if attempt < max_retries - 1 {
+                        // 等待后重试
+                        std::thread::sleep(Duration::from_millis(500 * (attempt + 1) as u64));
+                    }
+                }
+            }
+        }
+
+        self.state = ConnectionState::Failed;
+        let err = last_error.unwrap_or_else(|| anyhow::anyhow!("Unknown connection error"));
+        self.last_error = Some(err.to_string());
+        Err(err)
+    }
+
+    /// 尝试单次连接
+    fn try_connect(&mut self) -> Result<()> {
+        self.state = ConnectionState::Connecting;
+        self.last_error = None;
+
         let addr = format!("{}:{}", self.config.host, self.config.port);
-        let tcp = TcpStream::connect(&addr)?;
+        
+        // 使用超时连接
+        let tcp = TcpStream::connect_timeout(
+            &addr.to_socket_addrs()?
+                .next()
+                .context("Failed to resolve address")?,
+            self.connect_timeout
+        ).with_context(|| format!("Failed to connect to {} within {:?}", addr, self.connect_timeout))?;
+
+        tcp.set_read_timeout(Some(Duration::from_secs(30)))?;
+        tcp.set_write_timeout(Some(Duration::from_secs(30)))?;
 
         let mut session = Session::new()?;
         session.set_tcp_stream(tcp);
-        session.handshake()?;
+        session.handshake().context("SSH handshake failed")?;
+
+        self.state = ConnectionState::Authenticating;
 
         // 认证
         match &self.config.auth {
             crate::ssh::config::AuthMethod::Password(password) => {
-                session.userauth_password(&self.config.username, password)?;
+                session.userauth_password(&self.config.username, password)
+                    .context("Password authentication failed")?;
             }
             crate::ssh::config::AuthMethod::KeyFile(key_file) => {
                 session.userauth_pubkey_file(
                     &self.config.username,
                     None,
                     key_file,
-                    None::<&str>,
-                )?;
+                    self.config.key_passphrase.as_deref(),
+                ).with_context(|| format!("Key authentication failed with key file: {:?}", key_file))?;
             }
         }
 
         if !session.authenticated() {
-            return Err(anyhow::anyhow!("SSH authentication failed"));
+            return Err(anyhow::anyhow!("SSH authentication failed - please check your credentials"));
         }
 
         self.session = Some(session);
+        self.state = ConnectionState::Connected;
         Ok(())
     }
 
     /// 断开连接
     pub fn disconnect(&mut self) {
-        self.session = None;
+        if let Some(session) = self.session.take() {
+            // 尝试优雅地关闭会话
+            let _ = session.disconnect(None, "Disconnecting", None);
+        }
+        self.state = ConnectionState::Disconnected;
+        self.last_error = None;
+    }
+
+    /// 测试连接是否仍然有效
+    pub fn is_alive(&mut self) -> bool {
+        if let Some(session) = &self.session {
+            // 尝试执行一个简单的命令来测试连接
+            match session.channel_session() {
+                Ok(mut channel) => {
+                    if channel.exec("echo ping").is_ok() {
+                        let _ = channel.wait_close();
+                        return true;
+                    }
+                }
+                Err(_) => {}
+            }
+        }
+        self.state = ConnectionState::Failed;
+        false
     }
 
     /// 执行命令并返回输出
@@ -87,7 +211,12 @@ impl SshClient {
 
     /// 检查是否已连接
     pub fn is_connected(&self) -> bool {
-        self.session.is_some()
+        self.session.is_some() && self.state == ConnectionState::Connected
+    }
+
+    /// 检查连接状态（包括连接中和认证中）
+    pub fn is_connecting(&self) -> bool {
+        matches!(self.state, ConnectionState::Connecting | ConnectionState::Authenticating)
     }
 
     /// 获取配置

@@ -10,6 +10,12 @@ pub struct SshConfig {
     pub port: u16,
     pub username: String,
     pub auth: AuthMethod,
+    /// 密钥密码短语（可选）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_passphrase: Option<String>,
+    /// 连接超时（秒）
+    #[serde(default = "default_timeout")]
+    pub timeout_secs: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,6 +31,10 @@ fn default_port() -> u16 {
     22
 }
 
+fn default_timeout() -> u64 {
+    10
+}
+
 impl SshConfig {
     /// 创建新的 SSH 配置
     pub fn new(name: String, host: String, username: String) -> Self {
@@ -34,6 +44,8 @@ impl SshConfig {
             port: 22,
             username,
             auth: AuthMethod::Password(String::new()),
+            key_passphrase: None,
+            timeout_secs: 10,
         }
     }
 
@@ -55,9 +67,26 @@ impl SshConfig {
         self
     }
 
+    /// 设置密钥密码短语
+    pub fn with_key_passphrase(mut self, passphrase: String) -> Self {
+        self.key_passphrase = Some(passphrase);
+        self
+    }
+
+    /// 设置连接超时
+    pub fn with_timeout(mut self, timeout_secs: u64) -> Self {
+        self.timeout_secs = timeout_secs;
+        self
+    }
+
     /// 获取显示名称
     pub fn display_name(&self) -> String {
         format!("{}@{}:{}", self.username, self.host, self.port)
+    }
+
+    /// 获取连接超时
+    pub fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(self.timeout_secs)
     }
 }
 
