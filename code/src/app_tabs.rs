@@ -779,9 +779,12 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                 let buffer = tab.borrow().text_buffer.clone();
                 
                 // 获取当前光标位置
-                let mark = buffer.get_insert();
-                let iter = buffer.iter_at_mark(&mark);
-                let line_number = iter.line();
+                let line_number = if let Some(mark) = buffer.get_insert() {
+                    let iter = buffer.iter_at_mark(&mark);
+                    iter.line()
+                } else {
+                    0
+                };
                 
                 // 获取当前行文本
                 let line_text = if let Some(line_iter) = buffer.iter_at_line(line_number) {
