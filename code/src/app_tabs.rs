@@ -825,10 +825,13 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
     let window_clone = window.clone();
     view_bookmarks_btn.connect_clicked(move |_| {
         // 收集书签数据，避免借用问题
-        let bookmarks_data: Vec<(usize, i32, String, Option<String>)> = {
-            let bm = state_clone.borrow().bookmark_manager.borrow();
-            bm.get_bookmarks().iter().map(|b| (b.id, b.line_number, b.text.clone(), b.note.clone())).collect()
-        };
+        let state_ref = state_clone.borrow();
+        let bm = state_ref.bookmark_manager.borrow();
+        let bookmarks_data: Vec<(usize, i32, String, Option<String>)> = 
+            bm.get_bookmarks().iter().map(|b| (b.id, b.line_number, b.text.clone(), b.note.clone())).collect();
+        // 释放借用
+        drop(bm);
+        drop(state_ref);
         
         // 转换为Bookmark结构用于显示
         let bookmarks_for_dialog: Vec<crate::bookmark::Bookmark> = bookmarks_data.iter()
