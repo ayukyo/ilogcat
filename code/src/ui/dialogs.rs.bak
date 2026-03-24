@@ -7,8 +7,22 @@ use crate::ssh::config::{SshConfig, AuthMethod};
 use crate::config::{CustomLevelKeywords, SshServerConfig, Config};
 use std::path::Path;
 
-/// 显示 SSH 连接对话框
+/// 显示带状态反馈的 SSH 连接对话框
+/// 
+/// 此对话框会：
+/// 1. 收集连接信息
+/// 2. 显示连接进度
+/// 3. 测试连接并显示结果
+/// 4. 成功后才调用 on_connect
 pub fn show_ssh_dialog<F>(parent: &ApplicationWindow, on_connect: F)
+where
+    F: Fn(SshConfig) + 'static,
+{
+    show_ssh_connection_dialog_with_status(parent.clone(), on_connect);
+}
+
+/// 内部实现：带连接状态测试的 SSH 对话框
+fn show_ssh_connection_dialog_with_status<F>(parent: ApplicationWindow, on_connect: F)
 where
     F: Fn(SshConfig) + 'static,
 {
@@ -113,6 +127,15 @@ where
     let user_entry_clone = user_entry.clone();
     let pass_entry_clone = pass_entry.clone();
 
+    // 状态标签（显示连接状态）
+    let status_label = Label::builder()
+        .label("")
+        .wrap(true)
+        .xalign(0.0)
+        .build();
+    content.append(&status_label);
+
+    let parent_clone = parent.clone();
     dialog.connect_response(move |dialog, response| {
         if response == ResponseType::Accept {
             let name = name_entry_clone.text().to_string();
@@ -125,13 +148,218 @@ where
                 let config = SshConfig::new(name, host, username)
                     .with_port(port)
                     .with_password(password);
-                on_connect(config);
+                
+                // 关闭输入对话框
+                dialog.close();
+                
+                // 显示连接进度对话框
+                show_ssh_connection_progress_dialog(parent_clone.clone(), config, on_connect);
+            } else {
+                // 显示必填字段缺失的错误
+                show_error_dialog(&parent_clone.clone().upcast::<ApplicationWindow>(), "Missing Required Fields", 
+                    "Please fill in all required fields:\n- Connection Name\n- Host\n- Username");
+            }
+        } else {
+            dialog.close();
+        }
+    });
+
+    dialog.present();
+}
+
+/// 显示 SSH 连接进度对话框
+fn show_ssh_connection_progress_dialog<F>(
+    parent: ApplicationWindow, 
+    config: SshConfig,
+    on_connect: F
+) where F: Fn(SshConfig) + 'static {
+    use crate::ssh::client::{SshClient, ConnectionState};
+    use std::time::Duration;
+    
+    let dialog = Dialog::builder()
+        .title("Connecting to SSH Server")
+        .transient_for(parent)
+        .modal(true)
+        .default_width(400)
+        .build();
+
+    let content = dialog.content_area();
+    content.set_spacing(12);
+    content.set_margin_top(12);
+    content.set_margin_bottom(12);
+    content.set_margin_start(12);
+    content.set_margin_end(12);
+
+    // 连接信息
+    let info_label = Label::builder()
+        .label(&format!("Connecting to:\n{}@{}:{}", 
+            config.username, config.host, config.port))
+        .wrap(true)
+        .xalign(0.0)
+        .build();
+    content.append(&info_label);
+
+    // 进度条
+    let progress_bar = gtk4::ProgressBar::builder()
+        .pulse_step(0.1)
+        .show_text(true)
+        .text("Connecting...")
+        .build();
+    content.append(&progress_bar);
+
+    // 状态标签
+    let status_label = Label::builder()
+        .label("Initializing connection...")
+        .wrap(true)
+        .xalign(0.0)
+        .css_classes(vec!["dim-label".to_string()])
+        .build();
+    content.append(&status_label);
+
+    // 取消按钮
+    dialog.add_button("Cancel", ResponseType::Cancel);
+
+    let dialog_clone = dialog.clone();
+    let progress_bar_clone = progress_bar.clone();
+    let status_label_clone = status_label.clone();
+    let parent_clone = parent.clone();
+    
+    // 使用 glib::idle_add 在后台执行连接
+    let (sender, receiver) = glib::MainContext::channel(glib::Priority::DEFAULT);
+    
+    // 在后台线程执行连接
+    std::thread::spawn(move || {
+        let mut client = SshClient::new(config.clone());
+        
+        // 发送状态更新
+        let _ = sender.send(ConnectionStatus::Connecting);
+        
+        match client.connect() {
+            Ok(_) => {
+                // 测试连接是否有效
+                if client.is_connected() {
+                    let _ = sender.send(ConnectionStatus::Success(config));
+                } else {
+                    let _ = sender.send(ConnectionStatus::Failed("Connection established but authentication failed".to_string()));
+                }
+            }
+            Err(e) => {
+                let _ = sender.send(ConnectionStatus::Failed(e.to_string()));
             }
         }
+    });
+
+    // 处理连接状态更新
+    receiver.attach(None, move |status| {
+        match status {
+            ConnectionStatus::Connecting => {
+                progress_bar_clone.pulse();
+                status_label_clone.set_text("Establishing connection...");
+                glib::ControlFlow::Continue
+            }
+            ConnectionStatus::Success(config) => {
+                dialog_clone.close();
+                // 显示成功提示
+                show_info_dialog(&parent_clone, "Connection Successful", 
+                    &format!("Successfully connected to {}@{}:{}", 
+                        config.username, config.host, config.port));
+                // 调用回调
+                on_connect(config);
+                glib::ControlFlow::Break
+            }
+            ConnectionStatus::Failed(error) => {
+                dialog_clone.close();
+                // 显示详细错误信息
+                let error_msg = format_ssh_error(&error);
+                show_error_dialog(&parent_clone, "Connection Failed", &error_msg);
+                glib::ControlFlow::Break
+            }
+        }
+    });
+
+    // 动画进度条
+    let progress_bar_clone = progress_bar.clone();
+    glib::timeout_add_local(Duration::from_millis(100), move || {
+        progress_bar_clone.pulse();
+        glib::ControlFlow::Continue
+    });
+
+    dialog.connect_response(move |dialog, _| {
         dialog.close();
     });
 
     dialog.present();
+}
+
+/// SSH 连接状态
+enum ConnectionStatus {
+    Connecting,
+    Success(SshConfig),
+    Failed(String),
+}
+
+/// 格式化 SSH 错误信息，提供用户友好的错误说明
+fn format_ssh_error(error: &str) -> String {
+    let mut result = String::from("Failed to connect to SSH server.\n\n");
+    
+    if error.contains("Connection refused") {
+        result.push_str("Error: Connection refused\n\n");
+        result.push_str("Possible causes:\n");
+        result.push_str("• SSH service is not running on the remote server\n");
+        result.push_str("• The port number is incorrect (default is 22)\n");
+        result.push_str("• Firewall is blocking the connection\n\n");
+        result.push_str("Solutions:\n");
+        result.push_str("• Verify the server address and port\n");
+        result.push_str("• Check if SSH service is running: sudo systemctl status ssh\n");
+        result.push_str("• Check firewall settings: sudo ufw status");
+    } else if error.contains("Connection timed out") || error.contains("timed out") {
+        result.push_str("Error: Connection timed out\n\n");
+        result.push_str("Possible causes:\n");
+        result.push_str("• Server is unreachable (wrong IP/hostname)\n");
+        result.push_str("• Network connectivity issues\n");
+        result.push_str("• Firewall is blocking the connection\n\n");
+        result.push_str("Solutions:\n");
+        result.push_str("• Verify the server address is correct\n");
+        result.push_str("• Check network connectivity: ping <server>\n");
+        result.push_str("• Check if port is open: nc -zv <server> <port>");
+    } else if error.contains("authentication failed") || error.contains("Authentication") {
+        result.push_str("Error: Authentication failed\n\n");
+        result.push_str("Possible causes:\n");
+        result.push_str("• Username or password is incorrect\n");
+        result.push_str("• Account is locked or disabled\n");
+        result.push_str("• SSH key authentication is required (password not accepted)\n\n");
+        result.push_str("Solutions:\n");
+        result.push_str("• Verify username and password are correct\n");
+        result.push_str("• Check if the account is active\n");
+        result.push_str("• Consider using SSH key authentication instead");
+    } else if error.contains("resolve") || error.contains("Name or service not known") {
+        result.push_str("Error: Host not found\n\n");
+        result.push_str("Possible causes:\n");
+        result.push_str("• Hostname or IP address is incorrect\n");
+        result.push_str("• DNS resolution failed\n\n");
+        result.push_str("Solutions:\n");
+        result.push_str("• Verify the hostname or IP address\n");
+        result.push_str("• Try using IP address instead of hostname\n");
+        result.push_str("• Check DNS settings");
+    } else if error.contains("handshake") {
+        result.push_str("Error: SSH handshake failed\n\n");
+        result.push_str("Possible causes:\n");
+        result.push_str("• Incompatible SSH protocol versions\n");
+        result.push_str("• Server requires specific SSH key exchange method\n\n");
+        result.push_str("Solutions:\n");
+        result.push_str("• Check server SSH configuration\n");
+        result.push_str("• Verify the server is running a compatible SSH server");
+    } else {
+        // 通用错误
+        result.push_str(&format!("Error: {}\n\n", error));
+        result.push_str("Please check:\n");
+        result.push_str("• Server address and port are correct\n");
+        result.push_str("• Network connectivity is available\n");
+        result.push_str("• SSH service is running on the server\n");
+        result.push_str("• Firewall allows SSH connections");
+    }
+    
+    result
 }
 
 /// 显示文件选择对话框
