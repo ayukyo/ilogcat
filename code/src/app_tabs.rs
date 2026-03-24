@@ -825,13 +825,28 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
     let state_clone = state.clone();
     let window_clone = window.clone();
     view_bookmarks_btn.connect_clicked(move |_| {
-        let bookmarks = state_clone.borrow().bookmark_manager.borrow().get_bookmarks();
-        let bookmarks_vec: Vec<_> = bookmarks.into_iter().cloned().collect();
+        // 收集书签数据，避免借用问题
+        let bookmarks_data: Vec<(usize, i32, String, Option<String>)> = {
+            let bm = state_clone.borrow().bookmark_manager.borrow();
+            bm.get_bookmarks().iter().map(|b| (b.id, b.line_number, b.text.clone(), b.note.clone())).collect()
+        };
+        
+        // 转换为Bookmark结构用于显示
+        let bookmarks_for_dialog: Vec<crate::bookmark::Bookmark> = bookmarks_data.iter()
+            .map(|(id, line, text, note)| crate::bookmark::Bookmark {
+                id: *id,
+                line_number: *line,
+                text: text.clone(),
+                note: note.clone(),
+            })
+            .collect();
+        
+        let bookmarks_refs: Vec<&crate::bookmark::Bookmark> = bookmarks_for_dialog.iter().collect();
         
         let state_ref = state_clone.clone();
         BookmarkDialog::show_list(
             window_clone.upcast_ref::<gtk4::Window>(),
-            bookmarks_vec.iter().collect(),
+            bookmarks_refs,
             move |id, delete| {
                 if delete {
                     // 删除书签
