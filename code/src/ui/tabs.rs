@@ -467,6 +467,25 @@ impl TabManager {
         
         hbox.append(&close_btn);
 
+        // 绑定关闭按钮事件
+        let notebook = self.notebook.clone();
+        let tabs = self.tabs.clone();
+        close_btn.connect_clicked(move |_| {
+            // 查找标签页索引
+            if let Some(pos) = tabs.iter().position(|t| t.borrow().id == tab_id) {
+                // 停止日志源
+                tabs[pos].borrow_mut().stop_source();
+                
+                // 从notebook移除
+                if let Some(page) = notebook.nth_page(Some(pos as u32)) {
+                    notebook.remove_page(Some(pos as u32));
+                }
+                
+                // 从列表移除
+                tabs.remove(pos);
+            }
+        });
+
         (hbox, label)
     }
 

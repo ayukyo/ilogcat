@@ -21,6 +21,70 @@ use crate::bookmark::{BookmarkManager, BookmarkDialog};
 use crate::export::{ExportManager, ExportFormat};
 use crate::filter::enhanced::{EnhancedRegexFilter, FilterDialog};
 
+/// 应用主题
+fn apply_theme(theme: &str) {
+    let display = gtk4::gdk::Display::default();
+    if let Some(display) = display {
+        let provider = gtk4::CssProvider::new();
+        
+        if theme == "dark" {
+            // 暗色主题 CSS
+            provider.load_from_data(b"
+                window {
+                    background-color: #1e1e1e;
+                    color: #ffffff;
+                }
+                textview {
+                    background-color: #1e1e1e;
+                    color: #ffffff;
+                }
+                button {
+                    background-color: #3c3c3c;
+                    color: #ffffff;
+                }
+                entry {
+                    background-color: #2d2d2d;
+                    color: #ffffff;
+                }
+                dropdown {
+                    background-color: #2d2d2d;
+                    color: #ffffff;
+                }
+            ");
+        } else {
+            // 浅色主题 CSS
+            provider.load_from_data(b"
+                window {
+                    background-color: #ffffff;
+                    color: #000000;
+                }
+                textview {
+                    background-color: #ffffff;
+                    color: #000000;
+                }
+                button {
+                    background-color: #f0f0f0;
+                    color: #000000;
+                }
+                entry {
+                    background-color: #ffffff;
+                    color: #000000;
+                }
+                dropdown {
+                    background-color: #ffffff;
+                    color: #000000;
+                }
+            ");
+        }
+        
+        gtk4::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    }
+}
+
 /// 应用状态（支持多标签页）
 pub struct AppState {
     pub config: Config,
@@ -1009,6 +1073,14 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                 // 保存配置
                 if let Err(e) = state.config.save() {
                     eprintln!("Failed to save language setting: {}", e);
+                } else {
+                    // 立即应用语言设置
+                    let lang_enum = crate::i18n::Language::from_str(&lang);
+                    crate::i18n::set_language(lang_enum);
+                    
+                    // 显示提示
+                    crate::ui::dialogs::show_info_dialog(&window_ref, "Language Changed", 
+                        "Language setting has been changed. Some UI elements may require restart to take full effect.");
                 }
             });
         });
@@ -1028,6 +1100,13 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                 // 保存配置
                 if let Err(e) = state.config.save() {
                     eprintln!("Failed to save theme setting: {}", e);
+                } else {
+                    // 立即应用主题设置
+                    apply_theme(&theme);
+                    
+                    // 显示提示
+                    crate::ui::dialogs::show_info_dialog(&window_ref, "Theme Changed", 
+                        "Theme setting has been applied.");
                 }
             });
         });

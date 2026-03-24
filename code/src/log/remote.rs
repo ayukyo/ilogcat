@@ -51,17 +51,21 @@ impl LogSource for SshSource {
 
         // 建立 TCP 连接
         let addr = format!("{}:{}", self.config.host, self.config.port);
-        let tcp = TcpStream::connect(&addr)?;
+        let tcp = TcpStream::connect(&addr)
+            .map_err(|e| anyhow::anyhow!("Failed to connect to {}: {}", addr, e))?;
 
         // 创建 SSH 会话
-        let mut session = Session::new()?;
+        let mut session = Session::new()
+            .map_err(|e| anyhow::anyhow!("Failed to create SSH session: {}", e))?;
         session.set_tcp_stream(tcp);
-        session.handshake()?;
+        session.handshake()
+            .map_err(|e| anyhow::anyhow!("SSH handshake failed: {}", e))?;
 
         // 认证
         match &self.config.auth {
             SshAuthConfig::Password { password } => {
-                session.userauth_password(&self.config.username, password)?;
+                session.userauth_password(&self.config.username, password)
+                    .map_err(|e| anyhow::anyhow!("SSH password authentication failed: {}", e))?;
             }
             SshAuthConfig::KeyFile { key_file } => {
                 session.userauth_pubkey_file(
@@ -69,17 +73,19 @@ impl LogSource for SshSource {
                     None,
                     key_file,
                     None::<&str>,
-                )?;
+                ).map_err(|e| anyhow::anyhow!("SSH key authentication failed: {}", e))?;
             }
         }
 
         if !session.authenticated() {
-            return Err(anyhow::anyhow!("SSH authentication failed"));
+            return Err(anyhow::anyhow!("SSH authentication failed - please check your credentials"));
         }
 
         // 执行命令
-        let mut channel = session.channel_session()?;
-        channel.exec(&self.command)?;
+        let mut channel = session.channel_session()
+            .map_err(|e| anyhow::anyhow!("Failed to create SSH channel: {}", e))?;
+        channel.exec(&self.command)
+            .map_err(|e| anyhow::anyhow!("Failed to execute command '{}': {}", self.command, e))?;
 
         let sender = self.sender.clone();
         let source_info = LogSourceInfo::Remote(
@@ -127,6 +133,8 @@ impl LogSource for SshSource {
     }
 }
 
+use std::cell::RefCell;
+
 /// SSH 文件跟踪日志源
 pub struct SshFileWatchSource {
     config: SshServerConfig,
@@ -134,6 +142,7 @@ pub struct SshFileWatchSource {
     running: Arc<AtomicBool>,
     entries: crossbeam_channel::Receiver<LogEntry>,
     sender: crossbeam_channel::Sender<LogEntry>,
+    session: Arc<RefCell<Option<Session>>>,
 }
 
 impl SshFileWatchSource {
@@ -145,6 +154,7 @@ impl SshFileWatchSource {
             running: Arc::new(AtomicBool::new(false)),
             entries,
             sender,
+            session: Arc::new(RefCell::new(None)),
         }
     }
 }
@@ -164,6 +174,7 @@ impl LogSource for SshFileWatchSource {
             self.config.name.clone(),
             command.clone(),
         );
+        let session_arc = self.session.clone();
 
         thread::spawn(move || {
             let tcp = match TcpStream::connect(&addr) {
@@ -216,6 +227,9 @@ impl LogSource for SshFileWatchSource {
                 return;
             }
 
+            // 保存 session 以便后续关闭
+            *session_arc.borrow_mut() = Some(session);
+
             let stdout = channel.stream(0);
             let reader = BufReader::new(stdout);
 
@@ -232,6 +246,9 @@ impl LogSource for SshFileWatchSource {
             }
 
             let _ = channel.wait_close();
+            
+            // 清理 session
+            *session_arc.borrow_mut() = None;
         });
 
         Ok(())
@@ -239,6 +256,10 @@ impl LogSource for SshFileWatchSource {
 
     fn stop(&mut self) -> anyhow::Result<()> {
         self.running.store(false, Ordering::SeqCst);
+        // 关闭 SSH session 来强制终止连接
+        if let Ok(mut session) = self.session.try_borrow_mut() {
+            *session = None;
+        }
         Ok(())
     }
 
@@ -247,6 +268,4 @@ impl LogSource for SshFileWatchSource {
     }
 
     fn is_running(&self) -> bool {
-        self.running.load(Ordering::SeqCst)
-    }
-}
+        self
