@@ -607,13 +607,13 @@ pub fn show_language_dialog<F>(
     current_language: &str,
     on_save: F,
 ) where
-    F: Fn(String) + 'static,
+    F: Fn(String, bool) + 'static,  // 第二个参数表示是否需要重启
 {
     let dialog = Dialog::builder()
         .title("Language Settings")
         .transient_for(parent)
         .modal(true)
-        .default_width(300)
+        .default_width(350)
         .build();
 
     let content = dialog.content_area();
@@ -656,12 +656,22 @@ pub fn show_language_dialog<F>(
     lang_box.append(&zh_radio);
     content.append(&lang_box);
 
+    // 重启提示标签
+    let restart_label = Label::builder()
+        .label("⚠️ Note: Changing language requires restarting the application to take full effect.")
+        .wrap(true)
+        .xalign(0.0)
+        .css_classes(vec!["warning".to_string()])
+        .build();
+    content.append(&restart_label);
+
     // 按钮
     dialog.add_button("Cancel", ResponseType::Cancel);
     dialog.add_button("Save", ResponseType::Accept);
 
     let en_radio_clone = en_radio.clone();
     let zh_radio_clone = zh_radio.clone();
+    let current_lang_clone = current_language.to_string();
 
     dialog.connect_response(move |dialog, response| {
         if response == ResponseType::Accept {
@@ -670,7 +680,9 @@ pub fn show_language_dialog<F>(
             } else {
                 "en".to_string()
             };
-            on_save(lang);
+            // 检查语言是否真的改变了
+            let lang_changed = lang != current_lang_clone;
+            on_save(lang, lang_changed);
         }
         dialog.close();
     });

@@ -1052,21 +1052,36 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
             let current_lang = state_ref.borrow().config.ui.language.clone();
             let window_ref_clone = window_ref.clone();
             
-            crate::ui::dialogs::show_language_dialog(&window_for_dialog, &current_lang, move |lang| {
+            crate::ui::dialogs::show_language_dialog(&window_for_dialog, &current_lang, move |lang, lang_changed| {
                 let mut state = state_ref.borrow_mut();
                 state.config.ui.set_language(&lang);
                 
                 // 保存配置
                 if let Err(e) = state.config.save() {
                     eprintln!("Failed to save language setting: {}", e);
-                } else {
-                    // 立即应用语言设置
+                    crate::ui::dialogs::show_error_dialog(&window_ref_clone.borrow(), "Error", 
+                        &format!("Failed to save language setting: {}", e));
+                } else if lang_changed {
+                    // 立即应用语言设置到 i18n 系统
                     let lang_enum = crate::i18n::Language::from_str(&lang);
                     crate::i18n::set_language(lang_enum);
                     
-                    // 显示提示
-                    crate::ui::dialogs::show_info_dialog(&window_ref_clone.borrow(), "Language Changed", 
-                        "Language setting has been changed. Some UI elements may require restart to take full effect.");
+                    // 显示重启提示对话框
+                    let window_ref_for_confirm = window_ref_clone.clone();
+                    crate::ui::dialogs::show_confirm_dialog(
+                        &window_ref_clone.borrow(),
+                        "Restart Required",
+                        "Language has been changed. The application needs to restart for the change to take full effect.\n\nDo you want to restart now?",
+                        move || {
+                            // 用户确认重启，触发应用重启
+                            let window = window_ref_for_confirm.borrow();
+                            if let Some(app) = window.application() {
+                                // 使用 Gio 的 Application 方法来重启
+                                // 先退出，然后重新激活
+                                app.quit();
+                            }
+                        }
+                    );
                 }
             });
         });
