@@ -51,7 +51,7 @@ fn apply_theme(theme: &str) {
                     color: #ffffff;
                 }
             ";
-            provider.load_from_data(css.as_bytes());
+            provider.load_from_data(css);
         } else {
             // 浅色主题 CSS
             let css = "
@@ -76,7 +76,7 @@ fn apply_theme(theme: &str) {
                     color: #000000;
                 }
             ";
-            provider.load_from_data(css.as_bytes());
+            provider.load_from_data(css);
         }
         
         gtk4::style_context_add_provider_for_display(

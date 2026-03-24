@@ -226,7 +226,7 @@ impl LogSource for SshFileWatchSource {
             }
 
             // 保存 session 以便后续关闭
-            *session_arc.borrow_mut() = Some(session);
+            *session_arc.lock().unwrap() = Some(session);
 
             let stdout = channel.stream(0);
             let reader = BufReader::new(stdout);
