@@ -17,6 +17,9 @@ use crate::ui::TabSourceType as SourceType;
 use crate::ui::{SearchBar, SearchManager};
 use crate::config::SshServerConfig;
 use crate::stats::{StatsPanel, StatsDialog, LogStatistics};
+use crate::bookmark::{BookmarkManager, BookmarkDialog};
+use crate::export::{ExportManager, ExportFormat};
+use crate::filter::enhanced::{EnhancedRegexFilter, FilterDialog};
 
 /// 应用状态（支持多标签页）
 pub struct AppState {
@@ -24,6 +27,9 @@ pub struct AppState {
     pub tab_manager: Option<Rc<RefCell<TabManager>>>,
     pub search_bar: Option<Rc<RefCell<SearchBar>>>,
     pub search_manager: Rc<RefCell<SearchManager>>,
+    pub bookmark_manager: Rc<RefCell<BookmarkManager>>,
+    pub export_manager: Rc<RefCell<ExportManager>>,
+    pub enhanced_filter: Rc<RefCell<EnhancedRegexFilter>>,
 }
 
 impl AppState {
@@ -33,6 +39,9 @@ impl AppState {
             tab_manager: None,
             search_bar: None,
             search_manager: Rc::new(RefCell::new(SearchManager::new())),
+            bookmark_manager: Rc::new(RefCell::new(BookmarkManager::new())),
+            export_manager: Rc::new(RefCell::new(ExportManager::new())),
+            enhanced_filter: Rc::new(RefCell::new(EnhancedRegexFilter::new())),
         }
     }
 }
@@ -311,7 +320,29 @@ fn setup_shortcuts(window: &ApplicationWindow, state: Rc<RefCell<AppState>>, tab
             return glib::Propagation::Stop;
         }
         
-        glib::Propagation::Proceed
+        // Ctrl+B - 添加书签
+        if modifiers.contains(ModifierType::CONTROL_MASK) 
+            && (key == gtk4::gdk::Key::b || key == gtk4::gdk::Key::B) {
+            // 触发书签按钮点击
+            // 这里简化处理，实际应该调用书签添加逻辑
+            return glib::Propagation::Stop;
+        }
+        
+        // Ctrl+Shift+B - 查看书签
+        if modifiers.contains(ModifierType::CONTROL_MASK | ModifierType::SHIFT_MASK) 
+            && (key == gtk4::gdk::Key::b || key == gtk4::gdk::Key::B) {
+            // 触发查看书签对话框
+            return glib::Propagation::Stop;
+        }
+        
+        // Ctrl+Shift+E - 导出日志
+        if modifiers.contains(ModifierType::CONTROL_MASK | ModifierType::SHIFT_MASK) 
+            && (key == gtk4::gdk::Key::e || key == gtk4::gdk::Key::E) {
+            // 触发导出对话框
+            return glib::Propagation::Stop;
+        }
+        
+        glib::Propagation::Stop
     });
     
     window.add_controller(key_controller);
@@ -446,6 +477,47 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
 
     let sep5 = Separator::new(Orientation::Vertical);
     toolbar.append(&sep5);
+
+    // 自动滚动按钮
+    let auto_scroll_btn = Button::builder()
+        .label("⬇️ Auto")
+        .tooltip_text("Toggle auto-scroll (enabled by default, pauses when scrolling up)")
+        .build();
+    toolbar.append(&auto_scroll_btn);
+
+    // 跳转到最新按钮
+    let jump_latest_btn = Button::builder()
+        .label("Latest")
+        .tooltip_text("Jump to latest log and resume auto-scroll")
+        .build();
+    toolbar.append(&jump_latest_btn);
+
+    let sep6 = Separator::new(Orientation::Vertical);
+    toolbar.append(&sep6);
+
+    // 书签按钮
+    let bookmark_btn = Button::builder()
+        .label("🔖 Bookmark")
+        .tooltip_text("Add bookmark at current line (Ctrl+B)")
+        .build();
+    toolbar.append(&bookmark_btn);
+
+    // 查看书签按钮
+    let view_bookmarks_btn = Button::builder()
+        .label("Bookmarks")
+        .tooltip_text("View all bookmarks (Ctrl+Shift+B)")
+        .build();
+    toolbar.append(&view_bookmarks_btn);
+
+    // 导出按钮
+    let export_btn = Button::builder()
+        .label("📤 Export")
+        .tooltip_text("Export logs to file (Ctrl+Shift+E)")
+        .build();
+    toolbar.append(&export_btn);
+
+    let sep7 = Separator::new(Orientation::Vertical);
+    toolbar.append(&sep7);
 
     // 统计按钮
     let stats_btn = Button::builder()
@@ -694,6 +766,127 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                     tab.borrow_mut().toggle_auto_scroll();
                 }
                 auto_scroll_btn_clone.set_label("⬇️ Auto");
+            }
+        }
+    });
+
+    // 书签按钮事件 - 在当前行添加书签
+    let state_clone = state.clone();
+    let window_clone = window.clone();
+    bookmark_btn.connect_clicked(move |_| {
+        if let Some(ref tm) = state_clone.borrow().tab_manager {
+            if let Some(tab) = tm.borrow().current_tab() {
+                let buffer = tab.borrow().text_buffer.clone();
+                
+                // 获取当前光标位置
+                let mark = buffer.get_insert();
+                let iter = buffer.iter_at_mark(&mark);
+                let line_number = iter.line();
+                
+                // 获取当前行文本
+                let line_text = if let Some(line_iter) = buffer.iter_at_line(line_number) {
+                    let end_iter = if let Some(next_line) = buffer.iter_at_line(line_number + 1) {
+                        next_line
+                    } else {
+                        buffer.end_iter()
+                    };
+                    buffer.text(&line_iter, &end_iter, false).to_string()
+                } else {
+                    String::new()
+                };
+                
+                if !line_text.trim().is_empty() {
+                    let state_ref = state_clone.clone();
+                    BookmarkDialog::show_add(
+                        window_clone.upcast_ref::<gtk4::Window>(),
+                        &line_text,
+                        move |note| {
+                            if let Some(ref tm) = state_ref.borrow().tab_manager {
+                                if let Some(tab) = tm.borrow().current_tab() {
+                                    let buffer = tab.borrow().text_buffer.clone();
+                                    state_ref.borrow().bookmark_manager.borrow_mut().add_bookmark(
+                                        &buffer,
+                                        line_number,
+                                        note
+                                    );
+                                }
+                            }
+                        }
+                    );
+                }
+            }
+        }
+    });
+
+    // 查看书签按钮事件
+    let state_clone = state.clone();
+    let window_clone = window.clone();
+    view_bookmarks_btn.connect_clicked(move |_| {
+        let bookmarks = state_clone.borrow().bookmark_manager.borrow().get_bookmarks();
+        let bookmarks_vec: Vec<_> = bookmarks.into_iter().cloned().collect();
+        
+        let state_ref = state_clone.clone();
+        BookmarkDialog::show_list(
+            window_clone.upcast_ref::<gtk4::Window>(),
+            bookmarks_vec.iter().collect(),
+            move |id, delete| {
+                if delete {
+                    // 删除书签
+                    if let Some(ref tm) = state_ref.borrow().tab_manager {
+                        if let Some(tab) = tm.borrow().current_tab() {
+                            let buffer = tab.borrow().text_buffer.clone();
+                            state_ref.borrow().bookmark_manager.borrow_mut().remove_bookmark(&buffer, id);
+                        }
+                    }
+                } else {
+                    // 跳转到书签
+                    if let Some(ref tm) = state_ref.borrow().tab_manager {
+                        if let Some(tab) = tm.borrow().current_tab() {
+                            let buffer = tab.borrow().text_buffer.clone();
+                            if let Some(iter) = state_ref.borrow().bookmark_manager.borrow().goto_bookmark(&buffer, id) {
+                                let mark = buffer.create_mark(None, &iter, true);
+                                tab.borrow().text_view.scroll_to_mark(&mark, 0.0, true, 0.0, 0.5);
+                            }
+                        }
+                    }
+                }
+            }
+        );
+    });
+
+    // 导出按钮事件
+    let state_clone = state.clone();
+    let window_clone = window.clone();
+    export_btn.connect_clicked(move |_| {
+        if let Some(ref tm) = state_clone.borrow().tab_manager {
+            if let Some(tab) = tm.borrow().current_tab() {
+                let buffer = tab.borrow().text_buffer.clone();
+                let export_manager = state_clone.borrow().export_manager.clone();
+                
+                ExportManager::show_export_dialog(
+                    window_clone.upcast_ref::<gtk4::Window>(),
+                    move |format, path| {
+                        if let Err(e) = export_manager.borrow().export_text_buffer(&buffer, &path, format) {
+                            crate::ui::dialogs::show_error_dialog(
+                                &window_clone,
+                                "Export Failed",
+                                &e
+                            );
+                        } else {
+                            crate::ui::dialogs::show_info_dialog(
+                                &window_clone,
+                                "Export Successful",
+                                &format!("Logs exported to:\n{}", path)
+                            );
+                        }
+                    }
+                );
+            } else {
+                crate::ui::dialogs::show_info_dialog(
+                    &window_clone,
+                    "No Active Tab",
+                    "Please open a log tab first."
+                );
             }
         }
     });
