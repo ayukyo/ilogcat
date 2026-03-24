@@ -469,20 +469,21 @@ impl TabManager {
 
         // 绑定关闭按钮事件
         let notebook = self.notebook.clone();
-        let tabs = self.tabs.clone();
+        let tabs = Rc::new(RefCell::new(self.tabs.clone()));
         close_btn.connect_clicked(move |_| {
             // 查找标签页索引
-            if let Some(pos) = tabs.iter().position(|t| t.borrow().id == tab_id) {
+            let mut tabs_vec = tabs.borrow_mut();
+            if let Some(pos) = tabs_vec.iter().position(|t| t.borrow().id == tab_id) {
                 // 停止日志源
-                tabs[pos].borrow_mut().stop_source();
+                tabs_vec[pos].borrow_mut().stop_source();
                 
                 // 从notebook移除
-                if let Some(page) = notebook.nth_page(Some(pos as u32)) {
+                if let Some(_page) = notebook.nth_page(Some(pos as u32)) {
                     notebook.remove_page(Some(pos as u32));
                 }
                 
                 // 从列表移除
-                tabs.remove(pos);
+                tabs_vec.remove(pos);
             }
         });
 

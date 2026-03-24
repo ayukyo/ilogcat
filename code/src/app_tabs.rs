@@ -29,7 +29,7 @@ fn apply_theme(theme: &str) {
         
         if theme == "dark" {
             // 暗色主题 CSS
-            provider.load_from_data(b"
+            let css = "
                 window {
                     background-color: #1e1e1e;
                     color: #ffffff;
@@ -50,10 +50,11 @@ fn apply_theme(theme: &str) {
                     background-color: #2d2d2d;
                     color: #ffffff;
                 }
-            ");
+            ";
+            provider.load_from_data(css.as_bytes());
         } else {
             // 浅色主题 CSS
-            provider.load_from_data(b"
+            let css = "
                 window {
                     background-color: #ffffff;
                     color: #000000;
@@ -74,7 +75,8 @@ fn apply_theme(theme: &str) {
                     background-color: #ffffff;
                     color: #000000;
                 }
-            ");
+            ";
+            provider.load_from_data(css.as_bytes());
         }
         
         gtk4::style_context_add_provider_for_display(
@@ -1060,11 +1062,12 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         
         // 语言设置按钮事件
         let state_ref = state_clone.clone();
-        let window_ref = window_clone.clone();
+        let window_ref = Rc::new(RefCell::new(window_clone.clone()));
         lang_btn.connect_clicked(move |_| {
             let state_ref = state_ref.clone();
-            let window_for_dialog = window_ref.clone();
+            let window_for_dialog = window_ref.borrow().clone();
             let current_lang = state_ref.borrow().config.ui.language.clone();
+            let window_ref_clone = window_ref.clone();
             
             crate::ui::dialogs::show_language_dialog(&window_for_dialog, &current_lang, move |lang| {
                 let mut state = state_ref.borrow_mut();
@@ -1079,7 +1082,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                     crate::i18n::set_language(lang_enum);
                     
                     // 显示提示
-                    crate::ui::dialogs::show_info_dialog(&window_ref, "Language Changed", 
+                    crate::ui::dialogs::show_info_dialog(&window_ref_clone.borrow(), "Language Changed", 
                         "Language setting has been changed. Some UI elements may require restart to take full effect.");
                 }
             });
@@ -1087,11 +1090,12 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         
         // 主题设置按钮事件
         let state_ref = state_clone.clone();
-        let window_ref = window_clone.clone();
+        let window_ref = Rc::new(RefCell::new(window_clone.clone()));
         theme_btn.connect_clicked(move |_| {
             let state_ref = state_ref.clone();
-            let window_for_dialog = window_ref.clone();
+            let window_for_dialog = window_ref.borrow().clone();
             let current_theme = state_ref.borrow().config.ui.current_theme().to_string();
+            let window_ref_clone = window_ref.clone();
             
             crate::ui::dialogs::show_theme_dialog(&window_for_dialog, &current_theme, move |theme| {
                 let mut state = state_ref.borrow_mut();
@@ -1105,7 +1109,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                     apply_theme(&theme);
                     
                     // 显示提示
-                    crate::ui::dialogs::show_info_dialog(&window_ref, "Theme Changed", 
+                    crate::ui::dialogs::show_info_dialog(&window_ref_clone.borrow(), "Theme Changed", 
                         "Theme setting has been applied.");
                 }
             });

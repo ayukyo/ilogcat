@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::log::{LogSource, LogEntry, LogSourceInfo};
@@ -133,8 +133,6 @@ impl LogSource for SshSource {
     }
 }
 
-use std::cell::RefCell;
-
 /// SSH 文件跟踪日志源
 pub struct SshFileWatchSource {
     config: SshServerConfig,
@@ -142,7 +140,7 @@ pub struct SshFileWatchSource {
     running: Arc<AtomicBool>,
     entries: crossbeam_channel::Receiver<LogEntry>,
     sender: crossbeam_channel::Sender<LogEntry>,
-    session: Arc<RefCell<Option<Session>>>,
+    session: Arc<Mutex<Option<Session>>>,
 }
 
 impl SshFileWatchSource {
@@ -154,7 +152,7 @@ impl SshFileWatchSource {
             running: Arc::new(AtomicBool::new(false)),
             entries,
             sender,
-            session: Arc::new(RefCell::new(None)),
+            session: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -248,7 +246,9 @@ impl LogSource for SshFileWatchSource {
             let _ = channel.wait_close();
             
             // 清理 session
-            *session_arc.borrow_mut() = None;
+            if let Ok(mut session) = session_arc.lock() {
+                *session = None;
+            }
         });
 
         Ok(())
@@ -257,7 +257,7 @@ impl LogSource for SshFileWatchSource {
     fn stop(&mut self) -> anyhow::Result<()> {
         self.running.store(false, Ordering::SeqCst);
         // 关闭 SSH session 来强制终止连接
-        if let Ok(mut session) = self.session.try_borrow_mut() {
+        if let Ok(mut session) = self.session.lock() {
             *session = None;
         }
         Ok(())
