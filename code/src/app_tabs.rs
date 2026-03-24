@@ -68,7 +68,7 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     vbox.append(&toolbar);
 
     // 创建过滤栏
-    let filter_bar = create_filter_bar(state.clone());
+    let filter_bar = create_filter_bar(state.clone(), &window);
     vbox.append(&filter_bar);
 
     // 创建搜索栏（默认隐藏）
@@ -339,6 +339,13 @@ fn setup_shortcuts(window: &ApplicationWindow, state: Rc<RefCell<AppState>>, tab
         if modifiers.contains(ModifierType::CONTROL_MASK | ModifierType::SHIFT_MASK) 
             && (key == gtk4::gdk::Key::e || key == gtk4::gdk::Key::E) {
             // 触发导出对话框
+            return glib::Propagation::Stop;
+        }
+        
+        // Ctrl+Shift+F - 打开高级过滤对话框
+        if modifiers.contains(ModifierType::CONTROL_MASK | ModifierType::SHIFT_MASK) 
+            && (key == gtk4::gdk::Key::f || key == gtk4::gdk::Key::F) {
+            // 触发高级过滤对话框
             return glib::Propagation::Stop;
         }
         
@@ -1087,7 +1094,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
     toolbar
 }
 
-fn create_filter_bar(state: Rc<RefCell<AppState>>) -> gtk4::Box {
+fn create_filter_bar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> gtk4::Box {
     let filter_bar = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(6)
@@ -1113,6 +1120,13 @@ fn create_filter_bar(state: Rc<RefCell<AppState>>) -> gtk4::Box {
         .build();
     filter_bar.append(&clear_filter_btn);
 
+    // 高级过滤按钮
+    let advanced_filter_btn = Button::builder()
+        .label("Advanced")
+        .tooltip_text("Open advanced filter dialog (Ctrl+Shift+F)")
+        .build();
+    filter_bar.append(&advanced_filter_btn);
+
     // 搜索框回车事件
     let state_clone = state.clone();
     search_entry.connect_activate(move |entry| {
@@ -1134,6 +1148,49 @@ fn create_filter_bar(state: Rc<RefCell<AppState>>) -> gtk4::Box {
     clear_filter_btn.connect_clicked(move |_| {
         search_entry_clone.set_text("");
         clear_filter_on_current_tab(state_clone.clone());
+    });
+
+    // 高级过滤按钮事件
+    let state_clone = state.clone();
+    let window_weak = window.downgrade();
+    advanced_filter_btn.connect_clicked(move |_| {
+        if let Some(window) = window_weak.upgrade() {
+            // 获取当前过滤器的配置
+            let (current_patterns, case_sensitive, use_regex) = {
+                let filter = state_clone.borrow().enhanced_filter.borrow();
+                let patterns = filter.get_patterns().clone();
+                (patterns, false, true) // 默认不区分大小写，使用正则
+            };
+            
+            FilterDialog::show(
+                &window,
+                current_patterns,
+                case_sensitive,
+                use_regex,
+                glib::clone!(@strong state_clone => move |patterns, case_sensitive, use_regex| {
+                    // 更新增强过滤器
+                    {
+                        let mut filter = state_clone.borrow().enhanced_filter.borrow_mut();
+                        filter.clear();
+                        filter.set_case_sensitive(case_sensitive);
+                        filter.set_use_regex(use_regex);
+                        for pattern in &patterns {
+                            match pattern {
+                                crate::filter::enhanced::FilterPattern::Include(p) => {
+                                    let _ = filter.add_include(p);
+                                }
+                                crate::filter::enhanced::FilterPattern::Exclude(p) => {
+                                    let _ = filter.add_exclude(p);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 应用过滤到当前标签页
+                    apply_enhanced_filter_to_current_tab(state_clone.clone());
+                })
+            );
+        }
     });
 
     filter_bar
@@ -1197,6 +1254,40 @@ fn clear_filter_on_current_tab(state: Rc<RefCell<AppState>>) {
             
             // 重新显示所有日志
             tab_ref.filtered_entries = tab_ref.log_entries.clone();
+            tab_ref.filtered_count = tab_ref.filtered_entries.len();
+            tab_ref.refresh_filtered_display();
+        }
+    }
+}
+
+/// 应用增强过滤器到当前标签页
+fn apply_enhanced_filter_to_current_tab(state: Rc<RefCell<AppState>>) {
+    let tab_manager = {
+        let state_ref = state.borrow();
+        state_ref.tab_manager.clone()
+    };
+
+    if let Some(tm) = tab_manager {
+        if let Some(tab) = tm.borrow().current_tab() {
+            let mut tab_ref = tab.borrow_mut();
+            
+            // 获取增强过滤器
+            let enhanced_filter = state.borrow().enhanced_filter.clone();
+            
+            // 重新过滤并刷新显示
+            tab_ref.filtered_entries.clear();
+            let entries_to_add: Vec<_> = tab_ref.log_entries.iter()
+                .filter(|entry| {
+                    // 先检查基本过滤器
+                    if !tab_ref.filter.matches(entry) {
+                        return false;
+                    }
+                    // 再检查增强过滤器
+                    enhanced_filter.borrow().matches(entry)
+                })
+                .cloned()
+                .collect();
+            tab_ref.filtered_entries = entries_to_add;
             tab_ref.filtered_count = tab_ref.filtered_entries.len();
             tab_ref.refresh_filtered_display();
         }
