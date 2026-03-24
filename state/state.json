@@ -8,23 +8,23 @@
     "3": {"name": "高级功能", "status": "completed", "progress": 100},
     "4": {"name": "增强功能", "status": "completed", "progress": 100},
     "5": {"name": "统计面板与智能滚动", "status": "completed", "progress": 100},
-    "6": {"name": "Bug修复与优化", "status": "in_progress", "progress": 0}
+    "6": {"name": "Bug修复与优化", "status": "in_progress", "progress": 75}
   },
   "current_task": {
     "phase": 6,
     "task": "修复用户反馈的 Bug",
     "status": "in_progress",
-    "progress": 0
+    "progress": 75
   },
   "subtasks": [
-    {"name": "修复主题更换无效", "status": "pending", "priority": "high"},
-    {"name": "修复语言更换无效", "status": "pending", "priority": "high"},
-    {"name": "修复 SSH 连接失败", "status": "pending", "priority": "high"},
-    {"name": "修复远程文件监控无效", "status": "pending", "priority": "high"},
-    {"name": "修复无法停止监控", "status": "pending", "priority": "high"},
-    {"name": "修复无法关闭标签页", "status": "pending", "priority": "high"},
+    {"name": "修复主题更换无效", "status": "completed", "priority": "high"},
+    {"name": "修复语言更换无效", "status": "completed", "priority": "high"},
+    {"name": "修复 SSH 连接失败", "status": "completed", "priority": "high"},
+    {"name": "修复远程文件监控无效", "status": "completed", "priority": "high"},
+    {"name": "修复无法停止监控", "status": "completed", "priority": "high"},
+    {"name": "修复无法关闭标签页", "status": "completed", "priority": "high"},
     {"name": "优化 SSH 体验", "status": "pending", "priority": "medium"},
     {"name": "优化日志行显示", "status": "pending", "priority": "medium"}
   ],
-  "updated_at": "2026-03-24T10:48:00+08:00"
+  "updated_at": "2026-03-24T11:35:00+08:00"
 }
