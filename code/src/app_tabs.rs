@@ -1163,7 +1163,7 @@ fn create_filter_bar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -
             };
             
             FilterDialog::show(
-                &window,
+                window.upcast_ref::<gtk4::Window>(),
                 current_patterns,
                 case_sensitive,
                 use_regex,
