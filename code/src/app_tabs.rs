@@ -342,7 +342,7 @@ fn setup_shortcuts(window: &ApplicationWindow, state: Rc<RefCell<AppState>>, tab
             return glib::Propagation::Stop;
         }
         
-        glib::Propagation::Stop
+        glib::Propagation::Proceed
     });
     
     window.add_controller(key_controller);
