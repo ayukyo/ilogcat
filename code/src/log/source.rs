@@ -25,6 +25,22 @@ impl fmt::Display for LogLevel {
     }
 }
 
+impl std::str::FromStr for LogLevel {
+    type Err = String;
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "VERBOSE" | "V" => Ok(LogLevel::Verbose),
+            "DEBUG" | "D" => Ok(LogLevel::Debug),
+            "INFO" | "I" => Ok(LogLevel::Info),
+            "WARN" | "WARNING" | "W" => Ok(LogLevel::Warn),
+            "ERROR" | "E" => Ok(LogLevel::Error),
+            "FATAL" | "F" => Ok(LogLevel::Fatal),
+            _ => Err(format!("Unknown log level: {}", s)),
+        }
+    }
+}
+
 impl LogLevel {
     pub fn from_char(c: char) -> Option<Self> {
         match c {

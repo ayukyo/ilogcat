@@ -373,7 +373,9 @@ mod tests {
             timestamp: Local::now(),
             level: level.parse().unwrap_or(crate::log::LogLevel::Info),
             tag: tag.to_string(),
+            pid: None,
             message: message.to_string(),
+            source: crate::log::LogSourceInfo::Local("test".to_string()),
             raw_line: format!("{} {}: {}", level, tag, message),
         }
     }
