@@ -268,4 +268,6 @@ impl LogSource for SshFileWatchSource {
     }
 
     fn is_running(&self) -> bool {
-        self
+        self.running.load(Ordering::SeqCst)
+    }
+}

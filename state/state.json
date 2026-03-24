@@ -8,23 +8,19 @@
     "3": {"name": "高级功能", "status": "completed", "progress": 100},
     "4": {"name": "增强功能", "status": "completed", "progress": 100},
     "5": {"name": "统计面板与智能滚动", "status": "completed", "progress": 100},
-    "6": {"name": "Bug修复与优化", "status": "in_progress", "progress": 100}
+    "6": {"name": "Bug修复与优化", "status": "in_progress", "progress": 90}
   },
   "current_task": {
     "phase": 6,
-    "task": "Bug修复与优化完成",
-    "status": "completed",
-    "progress": 100
+    "task": "修复 GitHub Actions 构建失败",
+    "status": "in_progress",
+    "progress": 0
   },
-  "subtasks": [
-    {"name": "修复主题更换无效", "status": "completed", "priority": "high"},
-    {"name": "修复语言更换无效", "status": "completed", "priority": "high"},
-    {"name": "修复 SSH 连接失败", "status": "completed", "priority": "high"},
-    {"name": "修复远程文件监控无效", "status": "completed", "priority": "high"},
-    {"name": "修复无法停止监控", "status": "completed", "priority": "high"},
-    {"name": "修复无法关闭标签页", "status": "completed", "priority": "high"},
-    {"name": "优化 SSH 体验", "status": "completed", "priority": "medium"},
-    {"name": "优化日志行显示", "status": "completed", "priority": "medium"}
-  ],
-  "updated_at": "2026-03-24T13:45:00+08:00"
+  "build_status": {
+    "run_id": 23475358221,
+    "conclusion": "failure",
+    "commit": "abc6ad2",
+    "url": "https://github.com/ayukyo/ilogcat/actions/runs/23475358221"
+  },
+  "updated_at": "2026-03-24T14:25:00+08:00"
 }
