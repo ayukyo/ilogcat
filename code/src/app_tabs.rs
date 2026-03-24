@@ -548,23 +548,6 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
         .build();
     toolbar.append(&jump_latest_btn);
 
-    let sep5 = Separator::new(Orientation::Vertical);
-    toolbar.append(&sep5);
-
-    // 自动滚动按钮
-    let auto_scroll_btn = Button::builder()
-        .label("⬇️ Auto")
-        .tooltip_text("Toggle auto-scroll (enabled by default, pauses when scrolling up)")
-        .build();
-    toolbar.append(&auto_scroll_btn);
-
-    // 跳转到最新按钮
-    let jump_latest_btn = Button::builder()
-        .label("Latest")
-        .tooltip_text("Jump to latest log and resume auto-scroll")
-        .build();
-    toolbar.append(&jump_latest_btn);
-
     let sep6 = Separator::new(Orientation::Vertical);
     toolbar.append(&sep6);
 

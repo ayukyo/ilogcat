@@ -1,26 +1,26 @@
 {
   "project": "ilogcat",
-  "status": "completed",
-  "current_phase": 6,
+  "status": "active",
+  "current_phase": 7,
   "phases": {
     "1": {"name": "基础框架", "status": "completed", "progress": 100},
     "2": {"name": "核心功能", "status": "completed", "progress": 100},
     "3": {"name": "高级功能", "status": "completed", "progress": 100},
     "4": {"name": "增强功能", "status": "completed", "progress": 100},
     "5": {"name": "统计面板与智能滚动", "status": "completed", "progress": 100},
-    "6": {"name": "Bug修复与优化", "status": "completed", "progress": 100}
+    "6": {"name": "Bug修复与优化", "status": "completed", "progress": 100},
+    "7": {"name": "第七期 Bug修复", "status": "in_progress", "progress": 33}
   },
   "current_task": {
-    "phase": 6,
-    "task": "GitHub Actions 构建验证通过",
-    "status": "completed",
-    "progress": 100
+    "phase": 7,
+    "task": "修复用户反馈的新 Bug",
+    "status": "in_progress",
+    "progress": 33
   },
-  "build_status": {
-    "run_id": "23478555123",
-    "conclusion": "success",
-    "commit": "50f412c",
-    "url": "https://github.com/ayukyo/ilogcat/actions/runs/23478555123"
-  },
-  "updated_at": "2026-03-24T16:35:00+08:00"
+  "subtasks": [
+    {"name": "修复 SSH 连接问题", "status": "in_progress", "priority": "high"},
+    {"name": "修复按钮重复问题", "status": "completed", "priority": "high"},
+    {"name": "修复中文切换问题", "status": "pending", "priority": "medium"}
+  ],
+  "updated_at": "2026-03-24T17:35:00+08:00"
 }
