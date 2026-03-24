@@ -18,11 +18,11 @@ pub fn show_ssh_dialog<F>(parent: &ApplicationWindow, on_connect: F)
 where
     F: Fn(SshConfig) + 'static,
 {
-    show_ssh_connection_dialog_with_status(parent, on_connect);
+    show_ssh_connection_dialog_with_status(parent.clone(), on_connect);
 }
 
 /// 内部实现：带连接状态测试的 SSH 对话框
-fn show_ssh_connection_dialog_with_status<F>(parent: &ApplicationWindow, on_connect: F)
+fn show_ssh_connection_dialog_with_status<F>(parent: ApplicationWindow, on_connect: F)
 where
     F: Fn(SshConfig) + 'static,
 {
@@ -135,6 +135,7 @@ where
         .build();
     content.append(&status_label);
 
+    let parent_clone = parent.clone();
     dialog.connect_response(move |dialog, response| {
         if response == ResponseType::Accept {
             let name = name_entry_clone.text().to_string();
@@ -152,10 +153,10 @@ where
                 dialog.close();
                 
                 // 显示连接进度对话框
-                show_ssh_connection_progress_dialog(parent, config, on_connect);
+                show_ssh_connection_progress_dialog(&parent_clone, config, on_connect);
             } else {
                 // 显示必填字段缺失的错误
-                show_error_dialog(parent, "Missing Required Fields", 
+                show_error_dialog(&parent_clone, "Missing Required Fields", 
                     "Please fill in all required fields:\n- Connection Name\n- Host\n- Username");
             }
         } else {
