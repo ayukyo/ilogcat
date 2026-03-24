@@ -879,19 +879,20 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
             if let Some(tab) = tm.borrow().current_tab() {
                 let buffer = tab.borrow().text_buffer.clone();
                 let export_manager = state_clone.borrow().export_manager.clone();
+                let window_ref = window_clone.clone();
                 
                 ExportManager::show_export_dialog(
                     window_clone.upcast_ref::<gtk4::Window>(),
                     move |format, path| {
                         if let Err(e) = export_manager.borrow().export_text_buffer(&buffer, &path, format) {
                             crate::ui::dialogs::show_error_dialog(
-                                &window_clone,
+                                &window_ref,
                                 "Export Failed",
                                 &e
                             );
                         } else {
                             crate::ui::dialogs::show_info_dialog(
-                                &window_clone,
+                                &window_ref,
                                 "Export Successful",
                                 &format!("Logs exported to:\n{}", path)
                             );
