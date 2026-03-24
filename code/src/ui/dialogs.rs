@@ -153,10 +153,10 @@ where
                 dialog.close();
                 
                 // 显示连接进度对话框
-                show_ssh_connection_progress_dialog(&parent_clone, config, on_connect);
+                show_ssh_connection_progress_dialog(parent_clone.clone(), config, on_connect);
             } else {
                 // 显示必填字段缺失的错误
-                show_error_dialog(&parent_clone, "Missing Required Fields", 
+                show_error_dialog(&parent_clone.clone().upcast::<ApplicationWindow>(), "Missing Required Fields", 
                     "Please fill in all required fields:\n- Connection Name\n- Host\n- Username");
             }
         } else {
@@ -169,7 +169,7 @@ where
 
 /// 显示 SSH 连接进度对话框
 fn show_ssh_connection_progress_dialog<F>(
-    parent: &ApplicationWindow, 
+    parent: ApplicationWindow, 
     config: SshConfig,
     on_connect: F
 ) where F: Fn(SshConfig) + 'static {
