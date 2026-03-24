@@ -1156,11 +1156,14 @@ fn create_filter_bar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -
     advanced_filter_btn.connect_clicked(move |_| {
         if let Some(window) = window_weak.upgrade() {
             // 获取当前过滤器的配置
-            let (current_patterns, case_sensitive, use_regex) = {
-                let filter = state_clone.borrow().enhanced_filter.borrow();
-                let patterns = filter.get_patterns().clone();
-                (patterns, false, true) // 默认不区分大小写，使用正则
-            };
+            let state_ref = state_clone.borrow();
+            let filter = state_ref.enhanced_filter.borrow();
+            let current_patterns = filter.get_patterns().clone();
+            drop(filter);
+            drop(state_ref);
+            
+            let case_sensitive = false;
+            let use_regex = true;
             
             FilterDialog::show(
                 window.upcast_ref::<gtk4::Window>(),
@@ -1170,7 +1173,8 @@ fn create_filter_bar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -
                 glib::clone!(@strong state_clone => move |patterns, case_sensitive, use_regex| {
                     // 更新增强过滤器
                     {
-                        let mut filter = state_clone.borrow().enhanced_filter.borrow_mut();
+                        let state_ref = state_clone.borrow();
+                        let mut filter = state_ref.enhanced_filter.borrow_mut();
                         filter.clear();
                         filter.set_case_sensitive(case_sensitive);
                         filter.set_use_regex(use_regex);
@@ -1184,6 +1188,8 @@ fn create_filter_bar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -
                                 }
                             }
                         }
+                        drop(filter);
+                        drop(state_ref);
                     }
                     
                     // 应用过滤到当前标签页
