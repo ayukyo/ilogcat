@@ -25,5 +25,12 @@
     {"name": "代码质量检查", "status": "completed", "priority": "medium"},
     {"name": "GitHub Actions 构建验证", "status": "completed", "priority": "high"}
   ],
-  "updated_at": "2026-03-25T01:35:00+08:00"
+  "updated_at": "2026-03-26T02:32:00+08:00",
+  "last_build": {
+    "run_id": 23545072906,
+    "run_number": 138,
+    "status": "completed",
+    "conclusion": "success",
+    "timestamp": "2026-03-25T14:03:00Z"
+  }
 }
