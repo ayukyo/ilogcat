@@ -4,6 +4,7 @@ use std::rc::Rc;
 use gtk4::prelude::*;
 use glib::clone;
 use crate::log::LogEntry;
+use crate::i18n::{t, I18nKey};
 
 /// 过滤模式类型
 #[derive(Debug, Clone, PartialEq)]
@@ -218,7 +219,7 @@ impl FilterDialog {
         callback: F,
     ) {
         let dialog = gtk4::Dialog::new();
-        dialog.set_title(Some("Advanced Filter"));
+        dialog.set_title(Some(&t(I18nKey::DialogAdvancedFilter)));
         dialog.set_transient_for(Some(parent));
         dialog.set_modal(true);
         dialog.set_default_size(500, 400);
@@ -232,12 +233,14 @@ impl FilterDialog {
 
         // 选项区域
         let options_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
-        
-        let case_check = gtk4::CheckButton::with_label("Case sensitive");
+
+        let case_sensitive_text = t(I18nKey::LabelCaseSensitive);
+        let case_check = gtk4::CheckButton::with_label(&case_sensitive_text);
         case_check.set_active(case_sensitive);
         options_box.append(&case_check);
 
-        let regex_check = gtk4::CheckButton::with_label("Use regex");
+        let use_regex_text = t(I18nKey::LabelUseRegex);
+        let regex_check = gtk4::CheckButton::with_label(&use_regex_text);
         regex_check.set_active(use_regex);
         options_box.append(&regex_check);
 
@@ -263,19 +266,23 @@ impl FilterDialog {
 
         // 添加新模式的输入区域
         let input_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
-        
+
         let type_combo = gtk4::ComboBoxText::new();
-        type_combo.append(Some("include"), "Include");
-        type_combo.append(Some("exclude"), "Exclude");
+        let include_text = t(I18nKey::LabelInclude);
+        let exclude_text = t(I18nKey::LabelExclude);
+        type_combo.append(Some("include"), &include_text);
+        type_combo.append(Some("exclude"), &exclude_text);
         type_combo.set_active_id(Some("include"));
         input_box.append(&type_combo);
 
         let pattern_entry = gtk4::Entry::new();
         pattern_entry.set_hexpand(true);
-        pattern_entry.set_placeholder_text(Some("Enter pattern..."));
+        let placeholder = t(I18nKey::PlaceholderPattern);
+        pattern_entry.set_placeholder_text(Some(&placeholder));
         input_box.append(&pattern_entry);
 
-        let add_btn = gtk4::Button::with_label("Add");
+        let add_text = t(I18nKey::ButtonAdd);
+        let add_btn = gtk4::Button::with_label(&add_text);
         input_box.append(&add_btn);
 
         content.append(&input_box);
@@ -298,8 +305,10 @@ impl FilterDialog {
             }
         });
 
-        dialog.add_button("Cancel", gtk4::ResponseType::Cancel);
-        dialog.add_button("Apply", gtk4::ResponseType::Accept);
+        let cancel_text = t(I18nKey::ButtonCancel);
+        let apply_text = t(I18nKey::ButtonApply);
+        dialog.add_button(&cancel_text, gtk4::ResponseType::Cancel);
+        dialog.add_button(&apply_text, gtk4::ResponseType::Accept);
 
         dialog.connect_response(move |dialog, response| {
             if response == gtk4::ResponseType::Accept {
@@ -326,10 +335,12 @@ impl FilterDialog {
         row.set_margin_start(6);
         row.set_margin_end(6);
 
+        let include_label = format!("{}:", t(I18nKey::LabelInclude));
+        let exclude_label = format!("{}:", t(I18nKey::LabelExclude));
         // 类型标签
         let type_label = gtk4::Label::new(Some(match &pattern {
-            FilterPattern::Include(_) => "Include:",
-            FilterPattern::Exclude(_) => "Exclude:",
+            FilterPattern::Include(_) => &include_label,
+            FilterPattern::Exclude(_) => &exclude_label,
         }));
         type_label.set_width_chars(10);
         row.append(&type_label);

@@ -4,38 +4,44 @@ use std::fmt;
 /// 日志级别
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LogLevel {
+    Trace,
     Verbose,
     Debug,
     Info,
     Warn,
     Error,
     Fatal,
+    Critical,
 }
 
 impl fmt::Display for LogLevel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            LogLevel::Trace => write!(f, "T"),
             LogLevel::Verbose => write!(f, "V"),
             LogLevel::Debug => write!(f, "D"),
             LogLevel::Info => write!(f, "I"),
             LogLevel::Warn => write!(f, "W"),
             LogLevel::Error => write!(f, "E"),
             LogLevel::Fatal => write!(f, "F"),
+            LogLevel::Critical => write!(f, "C"),
         }
     }
 }
 
 impl std::str::FromStr for LogLevel {
     type Err = String;
-    
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
+            "TRACE" | "T" => Ok(LogLevel::Trace),
             "VERBOSE" | "V" => Ok(LogLevel::Verbose),
             "DEBUG" | "D" => Ok(LogLevel::Debug),
             "INFO" | "I" => Ok(LogLevel::Info),
             "WARN" | "WARNING" | "W" => Ok(LogLevel::Warn),
             "ERROR" | "E" => Ok(LogLevel::Error),
             "FATAL" | "F" => Ok(LogLevel::Fatal),
+            "CRITICAL" | "C" => Ok(LogLevel::Critical),
             _ => Err(format!("Unknown log level: {}", s)),
         }
     }
@@ -44,24 +50,28 @@ impl std::str::FromStr for LogLevel {
 impl LogLevel {
     pub fn from_char(c: char) -> Option<Self> {
         match c {
+            'T' | 't' => Some(LogLevel::Trace),
             'V' | 'v' => Some(LogLevel::Verbose),
             'D' | 'd' => Some(LogLevel::Debug),
             'I' | 'i' => Some(LogLevel::Info),
             'W' | 'w' => Some(LogLevel::Warn),
             'E' | 'e' => Some(LogLevel::Error),
             'F' | 'f' => Some(LogLevel::Fatal),
+            'C' | 'c' => Some(LogLevel::Critical),
             _ => None,
         }
     }
-    
+
     pub fn to_string_full(&self) -> String {
         match self {
+            LogLevel::Trace => "TRACE".to_string(),
             LogLevel::Verbose => "VERBOSE".to_string(),
             LogLevel::Debug => "DEBUG".to_string(),
             LogLevel::Info => "INFO".to_string(),
             LogLevel::Warn => "WARN".to_string(),
             LogLevel::Error => "ERROR".to_string(),
             LogLevel::Fatal => "FATAL".to_string(),
+            LogLevel::Critical => "CRITICAL".to_string(),
         }
     }
 }

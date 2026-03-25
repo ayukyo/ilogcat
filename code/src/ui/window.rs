@@ -110,6 +110,15 @@ impl MainWindow {
     fn setup_log_tags(buffer: &gtk4::TextBuffer) {
         let tag_table = buffer.tag_table();
 
+        // 时间戳标签 - 浅灰色背景，粗体
+        let tag_timestamp = gtk4::TextTag::builder()
+            .name("timestamp")
+            .foreground("#666666")
+            .background("#E0E0E0")
+            .weight(600)
+            .build();
+        tag_table.add(&tag_timestamp);
+
         // Verbose - Gray
         let tag_verbose = gtk4::TextTag::builder()
             .name("verbose")
@@ -152,6 +161,22 @@ impl MainWindow {
             .weight(700)
             .build();
         tag_table.add(&tag_fatal);
+
+        // Trace
+        let tag_trace = gtk4::TextTag::builder()
+            .name("trace")
+            .foreground("#909090")
+            .build();
+        tag_table.add(&tag_trace);
+
+        // Critical
+        let tag_critical = gtk4::TextTag::builder()
+            .name("critical")
+            .foreground("#FF0000")
+            .weight(800)
+            .background("#330000")
+            .build();
+        tag_table.add(&tag_critical);
     }
 
     /// 添加日志条目
@@ -165,34 +190,51 @@ impl MainWindow {
             self.filtered_count = self.filtered_entries.len();
 
             // 获取标签名称
-            let tag_name = match entry.level {
+            let level_tag_name = match entry.level {
+                LogLevel::Trace => "trace",
                 LogLevel::Verbose => "verbose",
                 LogLevel::Debug => "debug",
                 LogLevel::Info => "info",
                 LogLevel::Warn => "warn",
                 LogLevel::Error => "error",
                 LogLevel::Fatal => "fatal",
+                LogLevel::Critical => "critical",
             };
 
-            // 格式化日志行
+            // 格式化时间戳
+            let timestamp_str = entry.timestamp.format("%H:%M:%S.%3f").to_string();
+            let level_str = entry.level.to_string();
+
+            // 构建日志行
             let line = format!(
-                "{} {} {}: {}\n",
-                entry.timestamp.format("%H:%M:%S.%3f"),
-                entry.level,
+                "[{}] {} {}: {}\n",
+                timestamp_str,
+                level_str,
                 entry.tag,
                 entry.message
             );
 
             // 插入到文本缓冲区
             let mut end_iter = self.log_buffer.end_iter();
+            let line_start = self.log_buffer.char_count();
             self.log_buffer.insert(&mut end_iter, &line);
 
-            // 应用颜色标签到最后一行
-            let start_iter = self.log_buffer.iter_at_offset(
-                self.log_buffer.char_count() - line.len() as i32
-            );
-            let end_iter = self.log_buffer.end_iter();
-            self.log_buffer.apply_tag_by_name(tag_name, &start_iter, &end_iter);
+            // 应用时间戳样式 [HH:MM:SS.mmm]
+            let timestamp_start = line_start + 1;
+            let timestamp_end = timestamp_start + timestamp_str.len() as i32;
+            if timestamp_end <= self.log_buffer.char_count() {
+                let start_iter = self.log_buffer.iter_at_offset(timestamp_start);
+                let end_iter = self.log_buffer.iter_at_offset(timestamp_end);
+                self.log_buffer.apply_tag_by_name("timestamp", &start_iter, &end_iter);
+            }
+
+            // 应用级别样式到整行
+            let line_end = self.log_buffer.char_count();
+            if line_start >= 0 && line_end > line_start {
+                let start_iter = self.log_buffer.iter_at_offset(line_start);
+                let end_iter = self.log_buffer.iter_at_offset(line_end);
+                self.log_buffer.apply_tag_by_name(level_tag_name, &start_iter, &end_iter);
+            }
 
             // 自动滚动到底部
             if !self.is_paused.load(Ordering::SeqCst) {
@@ -236,12 +278,14 @@ impl MainWindow {
     fn append_log_entry_internal(&self, entry: &LogEntry) {
         // 获取标签名称
         let tag_name = match entry.level {
+            LogLevel::Trace => "trace",
             LogLevel::Verbose => "verbose",
             LogLevel::Debug => "debug",
             LogLevel::Info => "info",
             LogLevel::Warn => "warn",
             LogLevel::Error => "error",
             LogLevel::Fatal => "fatal",
+            LogLevel::Critical => "critical",
         };
 
         // 格式化日志行

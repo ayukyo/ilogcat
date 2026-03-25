@@ -13,7 +13,7 @@ use crate::log::remote::SshSource;
 use crate::filter::Filter;
 use crate::config::Config;
 use crate::ui::window::MainWindow;
-use crate::config::SshServerConfig;
+use crate::ssh::config::SshConfig;
 use std::path::PathBuf;
 
 /// 应用状态
@@ -113,9 +113,9 @@ impl AppState {
         Ok(())
     }
 
-    pub fn start_ssh_source(&mut self, config: SshServerConfig, command: &str) -> anyhow::Result<()> {
+    pub fn start_ssh_source(&mut self, config: SshConfig, command: &str) -> anyhow::Result<()> {
         self.stop_current_source();
-        
+
         let mut source = SshSource::new(config, command.to_string());
         source.start()?;
         self.current_source = Some(std::boxed::Box::new(source));
@@ -356,17 +356,21 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> B
                 // SSH - 显示SSH连接对话框
                 let state_ref = state_ref.clone();
                 let window_ref = window_ref.clone();
-                crate::ui::dialogs::show_ssh_dialog(&window_ref, move |ssh_config| {
+                let last_input = state_ref.borrow().config.get_last_ssh_input().cloned();
+                crate::ui::dialogs::show_ssh_dialog(&window_ref, last_input.as_ref(), move |ssh_config| {
                     let mut state = state_ref.borrow_mut();
                     state.clear_logs();
                     // 保存SSH配置
-                    state.config.add_ssh_server(crate::config::SshServerConfig::from(ssh_config));
-                    // 先获取SSH配置，避免借用冲突
-                    let ssh_config_clone = state.config.ssh_servers.last().cloned();
-                    if let Some(ssh_cfg) = ssh_config_clone {
-                        if let Err(e) = state.start_ssh_source(ssh_cfg, "journalctl -f -o short-iso") {
-                            eprintln!("Failed to start SSH source: {}", e);
-                        }
+                    state.config.save_last_ssh_input(
+                        &ssh_config.name,
+                        &ssh_config.host,
+                        ssh_config.port,
+                        &ssh_config.username,
+                    );
+                    state.config.add_ssh_server(ssh_config.clone());
+                    // 使用SSH配置启动源
+                    if let Err(e) = state.start_ssh_source(ssh_config, "journalctl -f -o short-iso") {
+                        eprintln!("Failed to start SSH source: {}", e);
                     }
                 });
             }

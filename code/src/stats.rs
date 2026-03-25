@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::log::LogLevel;
+use crate::i18n::{t, I18nKey};
 
 /// 日志统计信息
 #[derive(Debug)]
@@ -123,7 +124,7 @@ impl StatsPanel {
 
         // 标题
         let title = Label::builder()
-            .label("Log Statistics")
+            .label(&t(I18nKey::StatsTitle))
             .css_classes(vec!["title-2".to_string()])
             .halign(gtk4::Align::Start)
             .build();
@@ -131,7 +132,7 @@ impl StatsPanel {
 
         // 概览区域
         let overview_frame = Frame::builder()
-            .label("Overview")
+            .label(&t(I18nKey::StatsOverview))
             .margin_top(6)
             .build();
         let overview_grid = Grid::builder()
@@ -146,25 +147,25 @@ impl StatsPanel {
         // 总日志数
         let total_label = Label::new(Some("0"));
         total_label.set_css_classes(&["numeric"]);
-        overview_grid.attach(&Label::new(Some("Total Logs:")), 0, 0, 1, 1);
+        overview_grid.attach(&Label::new(Some(&t(I18nKey::StatsTotalLogs))), 0, 0, 1, 1);
         overview_grid.attach(&total_label, 1, 0, 1, 1);
 
         // 过滤后日志数
         let filtered_label = Label::new(Some("0"));
         filtered_label.set_css_classes(&["numeric"]);
-        overview_grid.attach(&Label::new(Some("Filtered:")), 0, 1, 1, 1);
+        overview_grid.attach(&Label::new(Some(&t(I18nKey::StatsFiltered))), 0, 1, 1, 1);
         overview_grid.attach(&filtered_label, 1, 1, 1, 1);
 
         // 日志速率
         let rate_label = Label::new(Some("0.0 /s"));
         rate_label.set_css_classes(&["numeric"]);
-        overview_grid.attach(&Label::new(Some("Rate:")), 0, 2, 1, 1);
+        overview_grid.attach(&Label::new(Some(&t(I18nKey::StatsRate))), 0, 2, 1, 1);
         overview_grid.attach(&rate_label, 1, 2, 1, 1);
 
         // 运行时间
         let uptime_label = Label::new(Some("00:00:00"));
         uptime_label.set_css_classes(&["numeric"]);
-        overview_grid.attach(&Label::new(Some("Uptime:")), 0, 3, 1, 1);
+        overview_grid.attach(&Label::new(Some(&t(I18nKey::StatsUptime))), 0, 3, 1, 1);
         overview_grid.attach(&uptime_label, 1, 3, 1, 1);
 
         overview_frame.set_child(Some(&overview_grid));
@@ -172,7 +173,7 @@ impl StatsPanel {
 
         // 日志级别分布
         let levels_frame = Frame::builder()
-            .label("Level Distribution")
+            .label(&t(I18nKey::StatsLevelDistribution))
             .margin_top(6)
             .build();
         let levels_box = Box::builder()
@@ -188,12 +189,14 @@ impl StatsPanel {
         let mut level_bars = HashMap::new();
 
         let levels = [
-            (LogLevel::Fatal, "#CC0000", "Fatal"),
-            (LogLevel::Error, "#CC0000", "Error"),
-            (LogLevel::Warn, "#FF8800", "Warn"),
-            (LogLevel::Info, "#008800", "Info"),
-            (LogLevel::Debug, "#0066CC", "Debug"),
-            (LogLevel::Verbose, "#808080", "Verbose"),
+            (LogLevel::Critical, "#FF0000", &t(I18nKey::LevelCritical)),
+            (LogLevel::Fatal, "#CC0000", &t(I18nKey::LevelFatal)),
+            (LogLevel::Error, "#CC0000", &t(I18nKey::LevelError)),
+            (LogLevel::Warn, "#FF8800", &t(I18nKey::LevelWarn)),
+            (LogLevel::Info, "#008800", &t(I18nKey::LevelInfo)),
+            (LogLevel::Debug, "#0066CC", &t(I18nKey::LevelDebug)),
+            (LogLevel::Verbose, "#808080", &t(I18nKey::LevelVerbose)),
+            (LogLevel::Trace, "#909090", &t(I18nKey::LevelTrace)),
         ];
 
         for (level, color, name) in levels.iter() {
@@ -326,7 +329,7 @@ impl StatsDialog {
     /// 显示统计对话框
     pub fn show(parent: &gtk4::Window, stats: &LogStatistics) {
         let dialog = gtk4::Dialog::new();
-        dialog.set_title(Some("Log Statistics"));
+        dialog.set_title(Some(&t(I18nKey::DialogStats)));
         dialog.set_transient_for(Some(parent));
         dialog.set_modal(true);
         dialog.set_default_size(400, 500);
@@ -346,8 +349,8 @@ impl StatsDialog {
 
         content.append(panel.borrow().widget());
 
-        dialog.add_button("Close", gtk4::ResponseType::Close);
-        dialog.add_button("Reset", gtk4::ResponseType::Other(1));
+        dialog.add_button(&t(I18nKey::ButtonCancel), gtk4::ResponseType::Close);
+        dialog.add_button(&t(I18nKey::ButtonClear), gtk4::ResponseType::Other(1));
 
         let panel_clone = panel.clone();
         dialog.connect_response(move |dlg, response| {

@@ -4,6 +4,9 @@ use std::path::PathBuf;
 use anyhow::Result;
 use directories::ProjectDirs;
 
+// 重导出 SSH 配置，方便其他模块使用
+pub use crate::ssh::config::{SshConfig, AuthMethod};
+
 /// 应用配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -16,9 +19,22 @@ pub struct Config {
     #[serde(default)]
     pub custom_level_keywords: CustomLevelKeywords,
     #[serde(default)]
-    pub ssh_servers: Vec<SshServerConfig>,
+    pub ssh_servers: Vec<SshConfig>,
     #[serde(default)]
     pub saved_filters: Vec<SavedFilter>,
+    #[serde(default)]
+    pub command_history: Vec<String>,
+    #[serde(default)]
+    pub last_ssh_input: Option<LastSshInput>,
+}
+
+/// 上次SSH输入记录
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LastSshInput {
+    pub name: String,
+    pub host: String,
+    pub port: u16,
+    pub username: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -60,6 +76,8 @@ pub struct ColorConfig {
 /// 自定义日志级别关键字配置
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CustomLevelKeywords {
+    #[serde(default = "default_trace_keywords")]
+    pub trace: Vec<String>,
     #[serde(default = "default_verbose_keywords")]
     pub verbose: Vec<String>,
     #[serde(default = "default_debug_keywords")]
@@ -72,22 +90,30 @@ pub struct CustomLevelKeywords {
     pub error: Vec<String>,
     #[serde(default = "default_fatal_keywords")]
     pub fatal: Vec<String>,
+    #[serde(default = "default_critical_keywords")]
+    pub critical: Vec<String>,
 }
 
 impl Default for CustomLevelKeywords {
     fn default() -> Self {
         Self {
+            trace: default_trace_keywords(),
             verbose: default_verbose_keywords(),
             debug: default_debug_keywords(),
             info: default_info_keywords(),
             warn: default_warn_keywords(),
             error: default_error_keywords(),
             fatal: default_fatal_keywords(),
+            critical: default_critical_keywords(),
         }
     }
 }
 
 // 默认自定义关键字
+fn default_trace_keywords() -> Vec<String> {
+    vec!["[trace]".to_string()]
+}
+
 fn default_verbose_keywords() -> Vec<String> {
     vec!["[v]".to_string(), "[verbose]".to_string()]
 }
@@ -112,23 +138,8 @@ fn default_fatal_keywords() -> Vec<String> {
     vec!["[f]".to_string(), "[fatal]".to_string()]
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SshServerConfig {
-    pub name: String,
-    pub host: String,
-    #[serde(default = "default_ssh_port")]
-    pub port: u16,
-    pub username: String,
-    pub auth: SshAuthConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum SshAuthConfig {
-    #[serde(rename = "password")]
-    Password { password: String },
-    #[serde(rename = "key")]
-    KeyFile { key_file: PathBuf },
+fn default_critical_keywords() -> Vec<String> {
+    vec!["[critical]".to_string()]
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,8 +169,8 @@ fn default_log_level() -> String { "Info".to_string() }
 fn default_max_lines() -> usize { 100000 }
 fn default_auto_scroll() -> bool { true }
 fn default_font() -> String { "Monospace 12".to_string() }
-fn default_theme() -> String { "dark".to_string() }
-fn default_language() -> String { "en".to_string() }
+fn default_theme() -> String { "light".to_string() }
+fn default_language() -> String { "zh".to_string() }
 fn default_ssh_port() -> u16 { 22 }
 fn default_color_verbose() -> String { "#808080".to_string() }
 fn default_color_debug() -> String { "#0066CC".to_string() }
@@ -239,30 +250,9 @@ impl Default for Config {
             custom_level_keywords: CustomLevelKeywords::default(),
             ssh_servers: Vec::new(),
             saved_filters: Vec::new(),
+            command_history: Vec::new(),
+            last_ssh_input: None,
         }
-    }
-}
-
-impl SshServerConfig {
-    /// 从 ssh::config::SshConfig 转换
-    pub fn from_ssh_config(config: crate::ssh::config::SshConfig) -> Self {
-        let auth = match config.auth {
-            crate::ssh::config::AuthMethod::Password(pwd) => SshAuthConfig::Password { password: pwd },
-            crate::ssh::config::AuthMethod::KeyFile(path) => SshAuthConfig::KeyFile { key_file: path },
-        };
-        
-        Self {
-            name: config.name,
-            host: config.host,
-            port: config.port,
-            username: config.username,
-            auth,
-        }
-    }
-    
-    /// 从 ssh::config::SshConfig 转换（用于对话框返回的配置）
-    pub fn from(config: crate::ssh::config::SshConfig) -> Self {
-        Self::from_ssh_config(config)
     }
 }
 
@@ -272,9 +262,9 @@ impl Config {
         ProjectDirs::from("com", "openclaw", "ilogcat")
             .map(|dirs| dirs.config_dir().join("config.toml"))
     }
-    
+
     /// 添加 SSH 服务器配置
-    pub fn add_ssh_server(&mut self, server: SshServerConfig) {
+    pub fn add_ssh_server(&mut self, server: SshConfig) {
         // 检查是否已存在同名配置，如果存在则更新
         if let Some(existing) = self.ssh_servers.iter_mut().find(|s| s.name == server.name) {
             *existing = server;
@@ -285,15 +275,52 @@ impl Config {
         let _ = self.save();
     }
 
+    /// 添加命令到历史记录
+    pub fn add_command_history(&mut self, command: String) {
+        // 移除已存在的相同命令
+        self.command_history.retain(|c| c != &command);
+        // 添加到开头
+        self.command_history.insert(0, command);
+        // 限制历史记录数量
+        if self.command_history.len() > 50 {
+            self.command_history.truncate(50);
+        }
+        // 自动保存
+        let _ = self.save();
+    }
+
+    /// 获取命令历史
+    pub fn get_command_history(&self) -> &[String] {
+        &self.command_history
+    }
+
+    /// 保存上次SSH输入
+    pub fn save_last_ssh_input(&mut self, name: &str, host: &str, port: u16, username: &str) {
+        self.last_ssh_input = Some(LastSshInput {
+            name: name.to_string(),
+            host: host.to_string(),
+            port,
+            username: username.to_string(),
+        });
+        let _ = self.save();
+    }
+
+    /// 获取上次SSH输入
+    pub fn get_last_ssh_input(&self) -> Option<&LastSshInput> {
+        self.last_ssh_input.as_ref()
+    }
+
     /// 更新自定义级别关键字
     pub fn update_custom_keywords(&mut self, level: &str, keywords: Vec<String>) {
         match level {
+            "trace" => self.custom_level_keywords.trace = keywords,
             "verbose" => self.custom_level_keywords.verbose = keywords,
             "debug" => self.custom_level_keywords.debug = keywords,
             "info" => self.custom_level_keywords.info = keywords,
             "warn" => self.custom_level_keywords.warn = keywords,
             "error" => self.custom_level_keywords.error = keywords,
             "fatal" => self.custom_level_keywords.fatal = keywords,
+            "critical" => self.custom_level_keywords.critical = keywords,
             _ => {}
         }
         let _ = self.save();
@@ -302,7 +329,10 @@ impl Config {
     /// 获取所有自定义关键字（用于日志解析）
     pub fn get_all_custom_keywords(&self) -> std::collections::HashMap<String, String> {
         let mut map = std::collections::HashMap::new();
-        
+
+        for kw in &self.custom_level_keywords.trace {
+            map.insert(kw.to_lowercase(), "trace".to_string());
+        }
         for kw in &self.custom_level_keywords.verbose {
             map.insert(kw.to_lowercase(), "verbose".to_string());
         }
@@ -321,7 +351,10 @@ impl Config {
         for kw in &self.custom_level_keywords.fatal {
             map.insert(kw.to_lowercase(), "fatal".to_string());
         }
-        
+        for kw in &self.custom_level_keywords.critical {
+            map.insert(kw.to_lowercase(), "critical".to_string());
+        }
+
         map
     }
 

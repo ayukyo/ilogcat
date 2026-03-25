@@ -31,16 +31,18 @@ impl Filter {
     pub fn set_min_level(&mut self, min_level: crate::log::LogLevel) {
         use crate::log::LogLevel;
         self.levels.clear();
-        
+
         let levels_to_include = match min_level {
-            LogLevel::Verbose => vec!["V", "D", "I", "W", "E", "F"],
-            LogLevel::Debug => vec!["D", "I", "W", "E", "F"],
-            LogLevel::Info => vec!["I", "W", "E", "F"],
-            LogLevel::Warn => vec!["W", "E", "F"],
-            LogLevel::Error => vec!["E", "F"],
-            LogLevel::Fatal => vec!["F"],
+            LogLevel::Trace => vec!["T", "V", "D", "I", "W", "E", "F", "C"],
+            LogLevel::Verbose => vec!["V", "D", "I", "W", "E", "F", "C"],
+            LogLevel::Debug => vec!["D", "I", "W", "E", "F", "C"],
+            LogLevel::Info => vec!["I", "W", "E", "F", "C"],
+            LogLevel::Warn => vec!["W", "E", "F", "C"],
+            LogLevel::Error => vec!["E", "F", "C"],
+            LogLevel::Fatal => vec!["F", "C"],
+            LogLevel::Critical => vec!["C"],
         };
-        
+
         for level in levels_to_include {
             self.levels.insert(level.to_string());
         }

@@ -13,3 +13,4 @@
 Thumbs.db
 # Rust build artifacts
 code/target/
+.claude/settings.json
