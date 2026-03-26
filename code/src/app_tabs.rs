@@ -1630,15 +1630,16 @@ fn add_shortcut_item(
     state: Rc<RefCell<AppState>>,
     color_index: usize,
 ) {
-    // 根据索引选择背景色（32种颜色循环）
+    // 根据索引选择背景色（32种颜色交替显示）
     let bg_colors = [
-        "#e3f2fd", "#f3e5f5", "#e8f5e9", "#fff3e0", "#e0f7fa",
-        "#fce4ec", "#f1f8e9", "#fff8e1", "#e0f2f1", "#ede7f6",
-        "#c8e6c9", "#ffe0b2", "#b2ebf2", "#f8bbd9", "#dcedc8",
-        "#ffccbc", "#b2dfdb", "#d1c4e9", "#a5d6a7", "#ffcc80",
-        "#80deea", "#f48fb1", "#c5e1a5", "#ffab91", "#80cbc4",
-        "#b39ddb", "#81c784", "#ffa726", "#4dd0e1", "#ef9a9a",
-        "#aed581", "#ff8a65",
+        "#e3f2fd", "#ffe0b2", "#f3e5f5", "#b2ebf2",
+        "#e8f5e9", "#fce4ec", "#fff3e0", "#d1c4e9",
+        "#e0f7fa", "#ffccbc", "#ede7f6", "#c5e1a5",
+        "#c8e6c9", "#f48fb1", "#b2dfdb", "#ffcc80",
+        "#f1f8e9", "#ef9a9a", "#fff8e1", "#80cbc4",
+        "#e0f2f1", "#ffab91", "#a5d6a7", "#b39ddb",
+        "#80deea", "#ffa726", "#dcedc8", "#4dd0e1",
+        "#81c784", "#ff8a65", "#aed581", "#f8bbd9",
     ];
     let bg_color = bg_colors[color_index % bg_colors.len()];
 
