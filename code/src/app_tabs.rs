@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Notebook, Statusbar, Label, Separator, Orientation, Button, SearchEntry};
+use gtk4::{Application, ApplicationWindow, Notebook, Statusbar, Label, Separator, Orientation, Button, SearchEntry, Paned, ScrolledWindow, ListBox, ListBoxRow, Entry, Popover};
 use gtk4::gdk::ModifierType;
 use glib;
 use std::cell::RefCell;
@@ -96,6 +96,7 @@ pub struct AppState {
     pub filter_entry: Option<gtk4::SearchEntry>,  // 过滤输入框
     pub export_manager: Rc<RefCell<ExportManager>>,
     pub enhanced_filter: Rc<RefCell<EnhancedRegexFilter>>,
+    pub command_shortcuts_list: Option<ListBox>,  // 命令快捷方式列表
 }
 
 impl AppState {
@@ -108,6 +109,7 @@ impl AppState {
             filter_entry: None,
             export_manager: Rc::new(RefCell::new(ExportManager::new())),
             enhanced_filter: Rc::new(RefCell::new(EnhancedRegexFilter::new())),
+            command_shortcuts_list: None,
         }
     }
 }
@@ -147,10 +149,30 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     let search_bar = Rc::new(RefCell::new(SearchBar::new()));
     search_bar.borrow().widget().set_visible(false);
     vbox.append(search_bar.borrow().widget());
-    
+
     {
         let mut state_ref = state.borrow_mut();
         state_ref.search_bar = Some(search_bar.clone());
+    }
+
+    // 创建 Paned 布局：左侧命令快捷方式，右侧日志窗口
+    let paned = Paned::builder()
+        .orientation(Orientation::Horizontal)
+        .hexpand(true)
+        .vexpand(true)
+        .build();
+
+    // 创建左侧命令快捷方式侧边栏
+    let (sidebar, shortcuts_list) = create_command_sidebar(state.clone());
+    paned.set_start_child(Some(&sidebar));
+    paned.set_shrink_start_child(false);  // 不允许收缩侧边栏
+    paned.set_resize_start_child(true);   // 允许调整大小
+    paned.set_position(200);  // 默认宽度
+
+    // 保存快捷方式列表引用
+    {
+        let mut state_ref = state.borrow_mut();
+        state_ref.command_shortcuts_list = Some(shortcuts_list.clone());
     }
 
     // 创建Notebook（标签页容器）
@@ -162,6 +184,9 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
 
     // 设置标签页位置为顶部
     notebook.set_tab_pos(gtk4::PositionType::Top);
+
+    // 将 notebook 添加到 paned 的右侧
+    paned.set_end_child(Some(&notebook));
 
     // 初始化标签页管理器
     let tab_manager = Rc::new(RefCell::new(TabManager::new(notebook.clone())));
@@ -184,7 +209,7 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     // 初始化搜索标签
     state.borrow().search_manager.borrow_mut().setup_tags(&first_tab.borrow().text_buffer);
 
-    vbox.append(&notebook);
+    vbox.append(&paned);
 
     // 标签页切换事件 - 同步过滤输入框
     let state_for_switch = state.clone();
@@ -1213,7 +1238,7 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
     toolbar
 }
 
-fn create_filter_bar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> (gtk4::Box, SearchEntry) {
+fn create_filter_bar(state: Rc<RefCell<AppState>>, _window: &ApplicationWindow) -> (gtk4::Box, SearchEntry) {
     let filter_bar = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(6)
@@ -1224,6 +1249,20 @@ fn create_filter_bar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -
         .hexpand(true)
         .build();
     filter_bar.append(&search_entry);
+
+    // 大小写敏感开关
+    let case_check = gtk4::CheckButton::builder()
+        .label("大小写")
+        .tooltip_text("区分大小写")
+        .build();
+    filter_bar.append(&case_check);
+
+    // 正则表达式开关
+    let regex_check = gtk4::CheckButton::builder()
+        .label("正则")
+        .tooltip_text("使用正则表达式过滤")
+        .build();
+    filter_bar.append(&regex_check);
 
     // 搜索按钮
     let search_btn = Button::builder()
@@ -1239,26 +1278,27 @@ fn create_filter_bar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -
         .build();
     filter_bar.append(&clear_filter_btn);
 
-    // 高级过滤按钮
-    let advanced_filter_btn = Button::builder()
-        .label(&t(I18nKey::ButtonAdvanced))
-        .tooltip_text(&t(I18nKey::TooltipAdvanced))
-        .build();
-    filter_bar.append(&advanced_filter_btn);
-
     // 搜索框回车事件
     let state_clone = state.clone();
+    let case_check_clone = case_check.clone();
+    let regex_check_clone = regex_check.clone();
     search_entry.connect_activate(move |entry| {
         let text = entry.text().to_string();
-        apply_filter_to_current_tab(state_clone.clone(), &text);
+        let case_sensitive = case_check_clone.is_active();
+        let use_regex = regex_check_clone.is_active();
+        apply_filter_to_current_tab(state_clone.clone(), &text, case_sensitive, use_regex);
     });
 
     // 搜索按钮事件
     let state_clone = state.clone();
     let search_entry_clone = search_entry.clone();
+    let case_check_clone = case_check.clone();
+    let regex_check_clone = regex_check.clone();
     search_btn.connect_clicked(move |_| {
         let text = search_entry_clone.text().to_string();
-        apply_filter_to_current_tab(state_clone.clone(), &text);
+        let case_sensitive = case_check_clone.is_active();
+        let use_regex = regex_check_clone.is_active();
+        apply_filter_to_current_tab(state_clone.clone(), &text, case_sensitive, use_regex);
     });
 
     // 清除过滤按钮事件
@@ -1269,60 +1309,11 @@ fn create_filter_bar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -
         clear_filter_on_current_tab(state_clone.clone());
     });
 
-    // 高级过滤按钮事件
-    let state_clone = state.clone();
-    let window_weak = window.downgrade();
-    advanced_filter_btn.connect_clicked(move |_| {
-        if let Some(window) = window_weak.upgrade() {
-            // 获取当前过滤器的配置
-            let state_ref = state_clone.borrow();
-            let filter = state_ref.enhanced_filter.borrow();
-            let current_patterns = filter.get_patterns().clone();
-            drop(filter);
-            drop(state_ref);
-            
-            let case_sensitive = false;
-            let use_regex = true;
-            
-            FilterDialog::show(
-                window.upcast_ref::<gtk4::Window>(),
-                current_patterns,
-                case_sensitive,
-                use_regex,
-                glib::clone!(@strong state_clone => move |patterns, case_sensitive, use_regex| {
-                    // 更新增强过滤器
-                    {
-                        let state_ref = state_clone.borrow();
-                        let mut filter = state_ref.enhanced_filter.borrow_mut();
-                        filter.clear();
-                        filter.set_case_sensitive(case_sensitive);
-                        filter.set_use_regex(use_regex);
-                        for pattern in &patterns {
-                            match pattern {
-                                crate::filter::enhanced::FilterPattern::Include(p) => {
-                                    let _ = filter.add_include(p);
-                                }
-                                crate::filter::enhanced::FilterPattern::Exclude(p) => {
-                                    let _ = filter.add_exclude(p);
-                                }
-                            }
-                        }
-                        drop(filter);
-                        drop(state_ref);
-                    }
-                    
-                    // 应用过滤到当前标签页
-                    apply_enhanced_filter_to_current_tab(state_clone.clone());
-                })
-            );
-        }
-    });
-
     (filter_bar, search_entry)
 }
 
 /// 应用过滤器到当前标签页
-fn apply_filter_to_current_tab(state: Rc<RefCell<AppState>>, filter_text: &str) {
+fn apply_filter_to_current_tab(state: Rc<RefCell<AppState>>, filter_text: &str, case_sensitive: bool, use_regex: bool) {
     if filter_text.is_empty() {
         clear_filter_on_current_tab(state);
         return;
@@ -1343,11 +1334,12 @@ fn apply_filter_to_current_tab(state: Rc<RefCell<AppState>>, filter_text: &str) 
             // 清除现有关键字过滤器
             tab_ref.filter.keywords.clear();
 
-            // 添加新的关键字过滤器
-            let keyword_filter = crate::filter::KeywordFilter::new(
+            // 添加新的关键字过滤器（支持大小写和正则）
+            let keyword_filter = crate::filter::KeywordFilter::with_regex(
                 filter_text.to_string(),
-                false,  // 不区分大小写
-                false,  // 不需要全词匹配
+                case_sensitive,  // 大小写敏感
+                false,           // 不需要全词匹配
+                use_regex,       // 是否使用正则
             );
             tab_ref.filter.keywords.push(keyword_filter);
 
@@ -1423,4 +1415,340 @@ fn apply_enhanced_filter_to_current_tab(state: Rc<RefCell<AppState>>) {
             tab_ref.refresh_filtered_display();
         }
     }
+}
+
+/// 创建命令快捷方式侧边栏
+fn create_command_sidebar(state: Rc<RefCell<AppState>>) -> (gtk4::Box, ListBox) {
+    let sidebar = gtk4::Box::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(4)
+        .margin_top(4)
+        .margin_bottom(4)
+        .margin_start(4)
+        .margin_end(4)
+        .width_request(150)  // 最小宽度
+        .build();
+
+    // 标题行
+    let title_box = gtk4::Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(4)
+        .build();
+
+    let title_label = Label::builder()
+        .label("命令快捷方式")
+        .hexpand(true)
+        .halign(gtk4::Align::Start)
+        .css_classes(vec!["title-4".to_string()])
+        .build();
+    title_box.append(&title_label);
+
+    // 添加按钮
+    let add_btn = Button::builder()
+        .icon_name("list-add-symbolic")
+        .tooltip_text("添加命令快捷方式")
+        .build();
+    title_box.append(&add_btn);
+
+    sidebar.append(&title_box);
+
+    // 快捷方式列表（可滚动）
+    let scrolled = ScrolledWindow::builder()
+        .hexpand(true)
+        .vexpand(true)
+        .hscrollbar_policy(gtk4::PolicyType::Never)
+        .build();
+
+    let shortcuts_list = ListBox::builder()
+        .selection_mode(gtk4::SelectionMode::Single)
+        .build();
+    scrolled.set_child(Some(&shortcuts_list));
+    sidebar.append(&scrolled);
+
+    // 从配置加载已有快捷方式
+    let shortcuts = state.borrow().config.command_shortcuts.clone();
+    for shortcut in shortcuts {
+        add_shortcut_item(&shortcuts_list, &shortcut.name, &shortcut.command, state.clone());
+    }
+
+    // 添加按钮点击事件
+    let state_clone = state.clone();
+    let shortcuts_list_clone = shortcuts_list.clone();
+    add_btn.connect_clicked(move |_| {
+        show_edit_shortcut_dialog(
+            None,  // 新建
+            None,
+            shortcuts_list_clone.clone(),
+            state_clone.clone(),
+        );
+    });
+
+    (sidebar, shortcuts_list)
+}
+
+/// 保存快捷方式顺序
+fn save_shortcuts_order(list: &ListBox, state: Rc<RefCell<AppState>>) {
+    let mut new_shortcuts = Vec::new();
+
+    let mut child = list.first_child();
+    while let Some(widget) = child {
+        let next = widget.next_sibling();
+        if let Some(listbox_row) = widget.dynamic_cast::<ListBoxRow>().ok() {
+            // 从 row 获取名称和命令
+            if let Some(row_box) = listbox_row.first_child() {
+                if let Some(hbox) = row_box.dynamic_cast::<gtk4::Box>().ok() {
+                    // 第一个子元素是名称按钮
+                    if let Some(first_child) = hbox.first_child() {
+                        if let Some(btn) = first_child.dynamic_cast::<Button>().ok() {
+                            if let Some(label) = btn.child().and_then(|c| c.dynamic_cast::<Label>().ok()) {
+                                let name = label.label();
+                                // 从配置中查找对应的命令
+                                let state_ref = state.borrow();
+                                if let Some(shortcut) = state_ref.config.command_shortcuts.iter().find(|s| s.name == name) {
+                                    new_shortcuts.push(shortcut.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        child = next;
+    }
+
+    // 保存新顺序
+    let mut state_ref = state.borrow_mut();
+    state_ref.config.command_shortcuts = new_shortcuts;
+    let _ = state_ref.config.save();
+}
+
+/// 添加快捷方式条目到列表
+fn add_shortcut_item(
+    list: &ListBox,
+    name: &str,
+    command: &str,
+    state: Rc<RefCell<AppState>>,
+) {
+    let row_box = gtk4::Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(2)
+        .margin_top(2)
+        .margin_bottom(2)
+        .margin_start(4)
+        .margin_end(4)
+        .build();
+
+    // 名称按钮（点击执行）
+    let name_btn = Button::builder()
+        .label(name)
+        .hexpand(true)
+        .halign(gtk4::Align::Start)
+        .tooltip_text(&format!("{}: {}", name, command))
+        .css_classes(vec!["flat".to_string()])
+        .build();
+
+    // 上移按钮
+    let up_btn = Button::builder()
+        .icon_name("go-up-symbolic")
+        .css_classes(vec!["flat".to_string()])
+        .tooltip_text("上移")
+        .build();
+
+    // 编辑按钮
+    let edit_btn = Button::builder()
+        .icon_name("document-edit-symbolic")
+        .css_classes(vec!["flat".to_string()])
+        .tooltip_text("编辑")
+        .build();
+
+    // 删除按钮
+    let delete_btn = Button::builder()
+        .icon_name("user-trash-symbolic")
+        .css_classes(vec!["flat".to_string()])
+        .tooltip_text("删除")
+        .build();
+
+    row_box.append(&name_btn);
+    row_box.append(&up_btn);
+    row_box.append(&edit_btn);
+    row_box.append(&delete_btn);
+
+    let row = ListBoxRow::builder()
+        .child(&row_box)
+        .activatable(false)
+        .build();
+
+    // 点击执行命令
+    let state_clone = state.clone();
+    let command_for_exec = command.to_string();
+    name_btn.connect_clicked(move |_| {
+        execute_shortcut_command(state_clone.clone(), &command_for_exec);
+    });
+
+    // 上移按钮
+    let list_clone = list.clone();
+    let row_clone = row.clone();
+    let state_clone = state.clone();
+    up_btn.connect_clicked(move |_| {
+        move_row_up(&list_clone, &row_clone, state_clone.clone());
+    });
+
+    // 编辑按钮
+    let state_clone = state.clone();
+    let list_clone = list.clone();
+    let name_clone = name.to_string();
+    let command_clone = command.to_string();
+    let row_clone = row.clone();
+    edit_btn.connect_clicked(move |_| {
+        show_edit_shortcut_dialog(
+            Some(&name_clone),
+            Some(&command_clone),
+            list_clone.clone(),
+            state_clone.clone(),
+        );
+        // 移除旧行
+        list_clone.remove(&row_clone);
+    });
+
+    // 删除按钮
+    let state_clone = state.clone();
+    let list_clone = list.clone();
+    let name_clone = name.to_string();
+    let row_clone = row.clone();
+    delete_btn.connect_clicked(move |_| {
+        // 从配置中删除
+        {
+            let mut state_ref = state_clone.borrow_mut();
+            state_ref.config.command_shortcuts.retain(|s| s.name != name_clone);
+            let _ = state_ref.config.save();
+        }
+        // 从列表中移除
+        list_clone.remove(&row_clone);
+    });
+
+    list.append(&row);
+}
+
+/// 上移行
+fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
+    let index = row.index();
+    if index > 0 {
+        list.remove(row);
+        list.insert(row, index - 1);
+        save_shortcuts_order(list, state);
+    }
+}
+
+/// 执行快捷方式命令
+fn execute_shortcut_command(state: Rc<RefCell<AppState>>, command: &str) {
+    let tab_manager = {
+        let state_ref = state.borrow();
+        state_ref.tab_manager.clone()
+    };
+
+    if let Some(tm) = tab_manager {
+        if let Some(tab) = tm.borrow().current_tab() {
+            let command_entry = tab.borrow().command_entry.clone();
+            command_entry.set_text(command);
+            command_entry.emit_activate();
+        }
+    }
+}
+
+/// 显示编辑快捷方式对话框
+fn show_edit_shortcut_dialog(
+    initial_name: Option<&str>,
+    initial_command: Option<&str>,
+    list: ListBox,
+    state: Rc<RefCell<AppState>>,
+) {
+    let dialog = gtk4::Dialog::builder()
+        .title(if initial_name.is_some() { "编辑命令" } else { "添加命令" })
+        .modal(true)
+        .use_header_bar(1)
+        .build();
+
+    let content = dialog.content_area();
+
+    let vbox = gtk4::Box::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(8)
+        .margin_top(8)
+        .margin_bottom(8)
+        .margin_start(12)
+        .margin_end(12)
+        .build();
+
+    // 名称输入
+    let name_label = Label::builder()
+        .label("名称:")
+        .halign(gtk4::Align::Start)
+        .build();
+    vbox.append(&name_label);
+
+    let name_entry = Entry::builder()
+        .placeholder_text("显示名称")
+        .hexpand(true)
+        .build();
+    if let Some(name) = initial_name {
+        name_entry.set_text(name);
+    }
+    vbox.append(&name_entry);
+
+    // 命令输入
+    let cmd_label = Label::builder()
+        .label("命令:")
+        .halign(gtk4::Align::Start)
+        .build();
+    vbox.append(&cmd_label);
+
+    let cmd_entry = Entry::builder()
+        .placeholder_text("要执行的命令")
+        .hexpand(true)
+        .build();
+    if let Some(cmd) = initial_command {
+        cmd_entry.set_text(cmd);
+    }
+    vbox.append(&cmd_entry);
+
+    content.append(&vbox);
+
+    // 添加按钮
+    dialog.add_button("取消", gtk4::ResponseType::Cancel);
+    dialog.add_button("保存", gtk4::ResponseType::Accept);
+
+    let state_clone = state.clone();
+    let list_clone = list.clone();
+    let name_entry_clone = name_entry.clone();
+    let cmd_entry_clone = cmd_entry.clone();
+    let old_name = initial_name.map(|s| s.to_string());
+
+    dialog.connect_response(move |dialog, response| {
+        if response == gtk4::ResponseType::Accept {
+            let name = name_entry_clone.text().to_string();
+            let command = cmd_entry_clone.text().to_string();
+
+            if !name.is_empty() && !command.is_empty() {
+                // 更新配置
+                {
+                    let mut state_ref = state_clone.borrow_mut();
+                    // 如果是编辑，先删除旧的
+                    if let Some(ref old) = old_name {
+                        state_ref.config.command_shortcuts.retain(|s| s.name != *old);
+                    }
+                    state_ref.config.command_shortcuts.push(crate::config::CommandShortcut {
+                        name: name.clone(),
+                        command: command.clone(),
+                    });
+                    let _ = state_ref.config.save();
+                }
+
+                // 更新列表
+                add_shortcut_item(&list_clone, &name, &command, state_clone.clone());
+            }
+        }
+        dialog.close();
+    });
+
+    dialog.show();
 }

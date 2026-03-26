@@ -786,8 +786,8 @@ impl TabManager {
                         let mut history = history_ref.borrow_mut();
                         history.retain(|c| c != &cmd);
                         history.insert(0, cmd.clone());
-                        if history.len() > 50 {
-                            history.truncate(50);
+                        if history.len() > 10 {
+                            history.truncate(10);
                         }
                     }
 
@@ -1015,10 +1015,13 @@ impl TabManager {
             }
 
             let command_entry_for_cb = command_entry_clone.clone();
+            let popover_clone = popover.clone();
             list_box.connect_row_activated(move |_, row| {
                 if let Some(label) = row.child().and_then(|c| c.downcast::<Label>().ok()) {
                     let text = label.text().to_string();
                     command_entry_for_cb.set_text(&text);
+                    command_entry_for_cb.emit_activate();  // 直接执行
+                    popover_clone.popdown();  // 关闭菜单
                 }
             });
 

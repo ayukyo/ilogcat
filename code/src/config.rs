@@ -26,6 +26,8 @@ pub struct Config {
     pub command_history: Vec<String>,
     #[serde(default)]
     pub last_ssh_input: Option<LastSshInput>,
+    #[serde(default)]
+    pub command_shortcuts: Vec<CommandShortcut>,
 }
 
 /// 上次SSH输入记录
@@ -151,6 +153,13 @@ pub struct SavedFilter {
     pub levels: Vec<String>,
 }
 
+/// 命令快捷方式
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandShortcut {
+    pub name: String,
+    pub command: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum FilterLogic {
@@ -252,6 +261,7 @@ impl Default for Config {
             saved_filters: Vec::new(),
             command_history: Vec::new(),
             last_ssh_input: None,
+            command_shortcuts: Vec::new(),
         }
     }
 }
