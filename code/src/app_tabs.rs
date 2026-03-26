@@ -50,6 +50,11 @@ fn apply_theme(theme: &str) {
                     background-color: #2d2d2d;
                     color: #ffffff;
                 }
+                .shortcut-bg-1 { background-color: #2d4a5e; border-radius: 4px; }
+                .shortcut-bg-2 { background-color: #4a3d5e; border-radius: 4px; }
+                .shortcut-bg-3 { background-color: #3d5e4a; border-radius: 4px; }
+                .shortcut-bg-4 { background-color: #5e4a3d; border-radius: 4px; }
+                .shortcut-bg-5 { background-color: #3d4a5e; border-radius: 4px; }
             ";
             provider.load_from_data(css);
         } else {
@@ -75,6 +80,11 @@ fn apply_theme(theme: &str) {
                     background-color: #ffffff;
                     color: #000000;
                 }
+                .shortcut-bg-1 { background-color: #e3f2fd; border-radius: 4px; }
+                .shortcut-bg-2 { background-color: #f3e5f5; border-radius: 4px; }
+                .shortcut-bg-3 { background-color: #e8f5e9; border-radius: 4px; }
+                .shortcut-bg-4 { background-color: #fff3e0; border-radius: 4px; }
+                .shortcut-bg-5 { background-color: #e0f7fa; border-radius: 4px; }
             ";
             provider.load_from_data(css);
         }
@@ -1467,8 +1477,8 @@ fn create_command_sidebar(state: Rc<RefCell<AppState>>) -> (gtk4::Box, ListBox) 
 
     // 从配置加载已有快捷方式
     let shortcuts = state.borrow().config.command_shortcuts.clone();
-    for shortcut in shortcuts {
-        add_shortcut_item(&shortcuts_list, &shortcut.name, &shortcut.command, state.clone());
+    for (index, shortcut) in shortcuts.into_iter().enumerate() {
+        add_shortcut_item(&shortcuts_list, &shortcut.name, &shortcut.command, state.clone(), index);
     }
 
     // 添加按钮点击事件
@@ -1528,7 +1538,12 @@ fn add_shortcut_item(
     name: &str,
     command: &str,
     state: Rc<RefCell<AppState>>,
+    color_index: usize,
 ) {
+    // 根据索引选择背景色类
+    let bg_classes = ["shortcut-bg-1", "shortcut-bg-2", "shortcut-bg-3", "shortcut-bg-4", "shortcut-bg-5"];
+    let bg_class = bg_classes[color_index % bg_classes.len()];
+
     let row_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(2)
@@ -1536,6 +1551,7 @@ fn add_shortcut_item(
         .margin_bottom(2)
         .margin_start(4)
         .margin_end(4)
+        .css_classes(vec![bg_class.to_string()])
         .build();
 
     // 名称按钮（点击执行）
@@ -1545,6 +1561,7 @@ fn add_shortcut_item(
         .halign(gtk4::Align::Start)
         .tooltip_text(&format!("{}: {}", name, command))
         .css_classes(vec!["flat".to_string()])
+        .width_request(100)  // 最小宽度约6个汉字
         .build();
 
     // 上移按钮
@@ -1744,7 +1761,19 @@ fn show_edit_shortcut_dialog(
                 }
 
                 // 更新列表
-                add_shortcut_item(&list_clone, &name, &command, state_clone.clone());
+                let index = list_clone.row_at_index(-1).map_or(0, |_| {
+                    // 计算当前列表中的行数
+                    let mut count = 0;
+                    let mut child = list_clone.first_child();
+                    while let Some(c) = child {
+                        if c.is::<ListBoxRow>() {
+                            count += 1;
+                        }
+                        child = c.next_sibling();
+                    }
+                    count
+                });
+                add_shortcut_item(&list_clone, &name, &command, state_clone.clone(), index);
             }
         }
         dialog.close();
