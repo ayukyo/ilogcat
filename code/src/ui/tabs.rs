@@ -780,12 +780,19 @@ impl TabManager {
                     .filter(|line| !line.is_empty())
                     .collect();
 
-                for cmd in commands {
-                    // 保存到历史
+                // 检查是否已连接SSH
+                let ssh_config = tab_clone.borrow().ssh_config.clone();
+                let is_ssh = ssh_config.is_some();
+
+                if is_ssh {
+                    // SSH: 将多行命令合并成一个用 ; 连接的命令
+                    let combined_cmd = commands.join(" ; ");
+
+                    // 保存到历史（保存合并后的命令）
                     {
                         let mut history = history_ref.borrow_mut();
-                        history.retain(|c| c != &cmd);
-                        history.insert(0, cmd.clone());
+                        history.retain(|c| c != &combined_cmd);
+                        history.insert(0, combined_cmd.clone());
                         if history.len() > 10 {
                             history.truncate(10);
                         }
@@ -793,53 +800,55 @@ impl TabManager {
 
                     // 显示命令提示符和命令
                     let prompt = tab_clone.borrow().get_prompt();
-                    tab_clone.borrow_mut().append_command(&prompt, &cmd);
+                    tab_clone.borrow_mut().append_command(&prompt, &combined_cmd);
 
                     // 停止当前源
                     tab_clone.borrow_mut().stop_source();
 
-                    // 检查是否已连接SSH
-                    let ssh_config = tab_clone.borrow().ssh_config.clone();
                     let host = ssh_config.as_ref().map(|c| c.host.clone()).unwrap_or_default();
 
                     if let Some(ssh_cfg) = ssh_config {
-                        // 在远程SSH服务器上执行命令
                         let current_path = tab_clone.borrow().current_path.clone();
-                        let cmd_trimmed = cmd.trim();
+                        let cmd_trimmed = combined_cmd.trim();
 
                         // 构建实际命令：先cd到当前目录，再执行命令
-                        let actual_cmd = if cmd_trimmed.starts_with("cd ") || cmd_trimmed == "cd" {
-                            // cd命令：执行后获取新路径
-                            let cd_part = if cmd_trimmed == "cd" {
-                                "cd ~".to_string()
-                            } else {
-                                cmd_trimmed.to_string()
-                            };
-                            format!("{}; pwd", cd_part)
-                        } else {
-                            // 普通命令：先cd再执行
-                            match &current_path {
-                                Some(path) if path != "~" => {
-                                    format!("cd {} && {}", path, cmd_trimmed)
-                                }
-                                _ => cmd_trimmed.to_string()
+                        let actual_cmd = match &current_path {
+                            Some(path) if path != "~" => {
+                                format!("cd {} && {}", path, cmd_trimmed)
                             }
+                            _ => cmd_trimmed.to_string()
                         };
 
                         let mut source = crate::log::SshSource::new(ssh_cfg.clone(), actual_cmd.clone());
-                        tab_clone.borrow_mut().set_source_info(SourceType::SshCommand(host.clone(), cmd.clone()));
+                        tab_clone.borrow_mut().set_source_info(SourceType::SshCommand(host, combined_cmd));
 
                         if let Err(e) = source.start() {
                             tab_clone.borrow_mut().append_terminal_output(&format!("错误: {}", e));
                             tab_clone.borrow_mut().set_ssh_connected(false);
                         } else {
                             tab_clone.borrow_mut().set_source(std::boxed::Box::new(source));
-                            // 如果是cd命令，标记需要更新路径
-                            if cmd_trimmed.starts_with("cd ") || cmd_trimmed == "cd" {
-                                tab_clone.borrow_mut().pending_cd = true;
+                        }
+                    }
+                } else {
+                    // 本地执行：逐个执行命令
+                    for cmd in commands {
+                        // 保存到历史
+                        {
+                            let mut history = history_ref.borrow_mut();
+                            history.retain(|c| c != &cmd);
+                            history.insert(0, cmd.clone());
+                            if history.len() > 10 {
+                                history.truncate(10);
                             }
                         }
-                    } else {
+
+                        // 显示命令提示符和命令
+                        let prompt = tab_clone.borrow().get_prompt();
+                        tab_clone.borrow_mut().append_command(&prompt, &cmd);
+
+                        // 停止当前源
+                        tab_clone.borrow_mut().stop_source();
+
                         // 本地执行命令
                         let parts: Vec<String> = match shlex::split(&cmd) {
                             Some(parts) => parts,
