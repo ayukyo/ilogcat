@@ -86,34 +86,42 @@ jobs:
         working-directory: code
         run: cargo build --release --verbose
 
+      - name: Get version from Cargo.toml
+        id: version
+        working-directory: code
+        run: |
+          VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
       - name: Strip binary
         working-directory: code
         run: strip target/release/ilogcat
 
       - name: Create release package
         working-directory: code
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p ilogcat-release/usr/bin
           mkdir -p ilogcat-release/usr/share/applications
           mkdir -p ilogcat-release/usr/share/icons/hicolor/256x256/apps
           mkdir -p ilogcat-release/usr/share/icons/hicolor/scalable/apps
           mkdir -p ilogcat-release/DEBIAN
-          
+
           # Copy binary
           cp target/release/ilogcat ilogcat-release/usr/bin/
-          
+
           # Convert SVG to PNG icon
           if [ -f assets/ilogcat.svg ]; then
             rsvg-convert -w 256 -h 256 assets/ilogcat.svg > ilogcat-release/usr/share/icons/hicolor/256x256/apps/ilogcat.png
             cp assets/ilogcat.svg ilogcat-release/usr/share/icons/hicolor/scalable/apps/ilogcat.svg
           else
-            # Create a simple placeholder icon if SVG doesn't exist
-            convert -size 256x256 xc:#2196F3 -gravity center -pointsize 72 -fill white -annotate 0 "iLog" ilogcat-release/usr/share/icons/hicolor/256x256/apps/ilogcat.png 2>/dev/null || \
-            echo "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAM5SURBVHic7doxDoMwDAVR6P8f2YQZcO54wYu4WJaVdG2axD+2SPb2HxBgJAAA+5I/AAhAIAABCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBCAQgEIBAAAIBD/B/gBqYQnQ5hclV4AAAAASUVORK5CYII=" | base64 -d > ilogcat-release/usr/share/icons/hicolor/256x256/apps/ilogcat.png
+            echo "No SVG icon found, skipping icon generation"
           fi
-          
+
           # Create desktop entry
-          cat > ilogcat-release/usr/share/applications/ilogcat.desktop << 'EOF'
+          cat > ilogcat-release/usr/share/applications/ilogcat.desktop << EOF
           [Desktop Entry]
           Name=iLogCat
           Comment=Linux Log Viewer inspired by Android Studio Logcat
@@ -125,7 +133,7 @@ jobs:
           Keywords=log;viewer;monitoring;logcat;
           StartupNotify=true
           EOF
-          
+
           # Create postinst script to update icon cache
           cat > ilogcat-release/DEBIAN/postinst << 'EOF'
           #!/bin/bash
@@ -133,31 +141,33 @@ jobs:
           update-icon-caches /usr/share/icons/hicolor/ 2>/dev/null || true
           EOF
           chmod 755 ilogcat-release/DEBIAN/postinst
-          
+
           # Create control file for deb package
           cat > ilogcat-release/DEBIAN/control << EOF
           Package: ilogcat
-          Version: 0.2.0
+          Version: ${VERSION}
           Section: utils
           Priority: optional
           Architecture: amd64
           Depends: libgtk-4-1, libssh2-1
-          Maintainer: DevAgent <dev-agent@openclaw.local>
+          Maintainer: ayukyo
           Description: Linux Log Viewer
            A logcat-like log viewer for Linux, inspired by Android Studio Logcat.
            Supports local system logs, file logs, and remote SSH logs.
           EOF
-          
+
           # Build deb package
           dpkg-deb --build ilogcat-release
-          mv ilogcat-release.deb ilogcat_0.2.0_amd64.deb
+          mv ilogcat-release.deb ilogcat_${VERSION}_amd64.deb
 
       - name: Prepare artifacts
         working-directory: code
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p ../artifacts
           cp target/release/ilogcat ../artifacts/
-          cp ilogcat_0.2.0_amd64.deb ../artifacts/
+          cp ilogcat_${VERSION}_amd64.deb ../artifacts/
 
       - name: Upload release binary
         uses: actions/upload-artifact@v4
@@ -165,7 +175,7 @@ jobs:
           name: ilogcat-release
           path: |
             artifacts/ilogcat
-            artifacts/ilogcat_0.2.0_amd64.deb
+            artifacts/ilogcat_${{ steps.version.outputs.version }}_amd64.deb
           retention-days: 30
 
   create-release:
@@ -179,6 +189,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Get version from Cargo.toml
+        id: version
+        working-directory: code
+        run: |
+          VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
 
       - name: Download release artifacts
         uses: actions/download-artifact@v4
@@ -194,26 +212,24 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v0.2.3
-          name: iLogCat v0.2.3
+          tag_name: v${{ steps.version.outputs.version }}
+          name: iLogCat v${{ steps.version.outputs.version }}
           body: |
-            ## iLogCat v0.2.3
-
-            ### Fixes
-            - Fixed GLIBC compatibility - now built in Ubuntu 22.04 container
-            - Should work on Ubuntu 22.04+ and similar systems
+            ## iLogCat v${{ steps.version.outputs.version }}
 
             ### Features
             - Multi-tab log windows support
+            - SSH remote log viewing with tab completion
+            - Command shortcuts sidebar
+            - Regex filtering support
             - Custom log level keywords
-            - SSH remote command execution
-            - Settings export/import
+            - Server time sync for SSH logs
 
             ### Installation
 
             #### Debian/Ubuntu (.deb package)
             ```bash
-            sudo dpkg -i ilogcat_0.2.0_amd64.deb
+            sudo dpkg -i ilogcat_${{ steps.version.outputs.version }}_amd64.deb
             sudo apt-get install -f  # Install dependencies if needed
             ```
 
@@ -234,7 +250,7 @@ jobs:
             ```
           files: |
             release/ilogcat
-            release/ilogcat_0.2.0_amd64.deb
+            release/ilogcat_${{ steps.version.outputs.version }}_amd64.deb
           draft: false
           prerelease: false
         env:
