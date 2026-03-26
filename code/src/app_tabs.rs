@@ -1630,6 +1630,9 @@ fn add_shortcut_item(
     state: Rc<RefCell<AppState>>,
     color_index: usize,
 ) {
+    // 根据索引选择背景色类（32种颜色循环）
+    let bg_class = format!("shortcut-bg-{}", (color_index % 32) + 1);
+
     let row_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(2)
@@ -1637,6 +1640,7 @@ fn add_shortcut_item(
         .margin_bottom(2)
         .margin_start(4)
         .margin_end(4)
+        .css_classes(vec![bg_class])
         .build();
 
     // 名称按钮（点击执行）
@@ -1675,13 +1679,9 @@ fn add_shortcut_item(
     row_box.append(&edit_btn);
     row_box.append(&delete_btn);
 
-    // 根据索引选择背景色类（32种颜色循环）
-    let bg_class = format!("shortcut-bg-{}", (color_index % 32) + 1);
-
     let row = ListBoxRow::builder()
         .child(&row_box)
         .activatable(false)
-        .css_classes(vec![bg_class])
         .build();
 
     // 点击执行命令
