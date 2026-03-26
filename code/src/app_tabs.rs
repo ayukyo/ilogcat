@@ -28,7 +28,7 @@ fn apply_theme(theme: &str) {
         let provider = gtk4::CssProvider::new();
         
         if theme == "dark" {
-            // 暗色主题 CSS
+            // 暗色主题 CSS - 32种颜色
             let css = "
                 window {
                     background-color: #1e1e1e;
@@ -50,15 +50,42 @@ fn apply_theme(theme: &str) {
                     background-color: #2d2d2d;
                     color: #ffffff;
                 }
-                .shortcut-bg-1 { background-color: #2d4a5e; border-radius: 4px; }
-                .shortcut-bg-2 { background-color: #4a3d5e; border-radius: 4px; }
-                .shortcut-bg-3 { background-color: #3d5e4a; border-radius: 4px; }
-                .shortcut-bg-4 { background-color: #5e4a3d; border-radius: 4px; }
-                .shortcut-bg-5 { background-color: #3d4a5e; border-radius: 4px; }
+                .shortcut-bg-1 { background-color: #1e3a5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-2 { background-color: #3d1e5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-3 { background-color: #1e5f3d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-4 { background-color: #5f3d1e; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-5 { background-color: #1e5f5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-6 { background-color: #5f1e3d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-7 { background-color: #3d5f1e; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-8 { background-color: #5f4d1e; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-9 { background-color: #1e4d4d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-10 { background-color: #3d3d5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-11 { background-color: #2d5f2d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-12 { background-color: #5f4d1e; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-13 { background-color: #1e4d5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-14 { background-color: #5f1e4d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-15 { background-color: #4d5f1e; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-16 { background-color: #5f3d2d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-17 { background-color: #2d5f5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-18 { background-color: #4d3d5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-19 { background-color: #3d5f2d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-20 { background-color: #5f4d2d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-21 { background-color: #2d4d5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-22 { background-color: #5f2d4d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-23 { background-color: #4d5f2d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-24 { background-color: #5f4d2d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-25 { background-color: #2d5f4d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-26 { background-color: #4d3d5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-27 { background-color: #3d5f3d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-28 { background-color: #5f4d1e; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-29 { background-color: #1e5f5f; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-30 { background-color: #5f1e1e; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-31 { background-color: #4d5f2d; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-32 { background-color: #5f3d2d; border-radius: 4px; margin: 1px; }
             ";
             provider.load_from_data(css);
         } else {
-            // 浅色主题 CSS
+            // 浅色主题 CSS - 32种颜色
             let css = "
                 window {
                     background-color: #ffffff;
@@ -80,11 +107,38 @@ fn apply_theme(theme: &str) {
                     background-color: #ffffff;
                     color: #000000;
                 }
-                .shortcut-bg-1 { background-color: #e3f2fd; border-radius: 4px; }
-                .shortcut-bg-2 { background-color: #f3e5f5; border-radius: 4px; }
-                .shortcut-bg-3 { background-color: #e8f5e9; border-radius: 4px; }
-                .shortcut-bg-4 { background-color: #fff3e0; border-radius: 4px; }
-                .shortcut-bg-5 { background-color: #e0f7fa; border-radius: 4px; }
+                .shortcut-bg-1 { background-color: #e3f2fd; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-2 { background-color: #f3e5f5; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-3 { background-color: #e8f5e9; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-4 { background-color: #fff3e0; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-5 { background-color: #e0f7fa; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-6 { background-color: #fce4ec; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-7 { background-color: #f1f8e9; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-8 { background-color: #fff8e1; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-9 { background-color: #e0f2f1; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-10 { background-color: #ede7f6; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-11 { background-color: #c8e6c9; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-12 { background-color: #ffe0b2; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-13 { background-color: #b2ebf2; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-14 { background-color: #f8bbd9; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-15 { background-color: #dcedc8; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-16 { background-color: #ffccbc; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-17 { background-color: #b2dfdb; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-18 { background-color: #d1c4e9; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-19 { background-color: #a5d6a7; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-20 { background-color: #ffcc80; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-21 { background-color: #80deea; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-22 { background-color: #f48fb1; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-23 { background-color: #c5e1a5; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-24 { background-color: #ffab91; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-25 { background-color: #80cbc4; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-26 { background-color: #b39ddb; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-27 { background-color: #81c784; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-28 { background-color: #ffa726; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-29 { background-color: #4dd0e1; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-30 { background-color: #ef5350; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-31 { background-color: #aed581; border-radius: 4px; margin: 1px; }
+                .shortcut-bg-32 { background-color: #ff8a65; border-radius: 4px; margin: 1px; }
             ";
             provider.load_from_data(css);
         }
@@ -1540,10 +1594,6 @@ fn add_shortcut_item(
     state: Rc<RefCell<AppState>>,
     color_index: usize,
 ) {
-    // 根据索引选择背景色类
-    let bg_classes = ["shortcut-bg-1", "shortcut-bg-2", "shortcut-bg-3", "shortcut-bg-4", "shortcut-bg-5"];
-    let bg_class = bg_classes[color_index % bg_classes.len()];
-
     let row_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(2)
@@ -1551,7 +1601,6 @@ fn add_shortcut_item(
         .margin_bottom(2)
         .margin_start(4)
         .margin_end(4)
-        .css_classes(vec![bg_class.to_string()])
         .build();
 
     // 名称按钮（点击执行）
@@ -1590,9 +1639,13 @@ fn add_shortcut_item(
     row_box.append(&edit_btn);
     row_box.append(&delete_btn);
 
+    // 根据索引选择背景色类（32种颜色循环）
+    let bg_class = format!("shortcut-bg-{}", (color_index % 32) + 1);
+
     let row = ListBoxRow::builder()
         .child(&row_box)
         .activatable(false)
+        .css_classes(vec![bg_class])
         .build();
 
     // 点击执行命令
