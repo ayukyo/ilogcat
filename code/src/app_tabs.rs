@@ -1630,8 +1630,23 @@ fn add_shortcut_item(
     state: Rc<RefCell<AppState>>,
     color_index: usize,
 ) {
-    // 根据索引选择背景色类（32种颜色循环）
-    let bg_class = format!("shortcut-bg-{}", (color_index % 32) + 1);
+    // 根据索引选择背景色（32种颜色循环）
+    let bg_colors = [
+        "#e3f2fd", "#f3e5f5", "#e8f5e9", "#fff3e0", "#e0f7fa",
+        "#fce4ec", "#f1f8e9", "#fff8e1", "#e0f2f1", "#ede7f6",
+        "#c8e6c9", "#ffe0b2", "#b2ebf2", "#f8bbd9", "#dcedc8",
+        "#ffccbc", "#b2dfdb", "#d1c4e9", "#a5d6a7", "#ffcc80",
+        "#80deea", "#f48fb1", "#c5e1a5", "#ffab91", "#80cbc4",
+        "#b39ddb", "#81c784", "#ffa726", "#4dd0e1", "#ef9a9a",
+        "#aed581", "#ff8a65",
+    ];
+    let bg_color = bg_colors[color_index % bg_colors.len()];
+
+    // 创建带背景色的容器
+    let bg_css = format!(
+        ".shortcut-item-{} {{ background-color: {}; border-radius: 4px; padding: 2px; }}",
+        color_index % 32, bg_color
+    );
 
     let row_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
@@ -1640,10 +1655,19 @@ fn add_shortcut_item(
         .margin_bottom(2)
         .margin_start(4)
         .margin_end(4)
+        .css_classes(vec![format!("shortcut-item-{}", color_index % 32)])
         .build();
 
-    // 手动添加CSS类
-    row_box.add_css_class(&bg_class);
+    // 动态添加CSS
+    let provider = gtk4::CssProvider::new();
+    provider.load_from_data(&bg_css);
+    if let Some(display) = gtk4::gdk::Display::default() {
+        gtk4::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
+        );
+    }
 
     // 名称按钮（点击执行）
     let name_btn = Button::builder()
@@ -1652,7 +1676,7 @@ fn add_shortcut_item(
         .halign(gtk4::Align::Start)
         .tooltip_text(&format!("{}: {}", name, command))
         .css_classes(vec!["flat".to_string()])
-        .width_request(100)  // 最小宽度约6个汉字
+        .width_request(100)
         .build();
 
     // 上移按钮
