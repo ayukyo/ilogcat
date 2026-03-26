@@ -63,31 +63,17 @@ impl Filter {
             }
         }
 
-        // 关键字过滤 - 搜索整个日志内容（时间戳 + 级别 + 标签 + 消息）
+        // 关键字过滤 - 搜索原始日志行
         if !self.keywords.is_empty() {
-            let full_text = format!(
-                "{} {} {}: {}",
-                entry.timestamp.format("%H:%M:%S.%3f"),
-                entry.level,
-                entry.tag,
-                entry.message
-            );
-            let matches = self.keywords.iter().any(|kw| kw.matches(&full_text));
+            let matches = self.keywords.iter().any(|kw| kw.matches(&entry.raw_line));
             if !matches {
                 return false;
             }
         }
 
-        // 正则过滤 - 同样搜索整个日志内容
+        // 正则过滤 - 同样搜索原始日志行
         if let Some(ref regex) = self.regex {
-            let full_text = format!(
-                "{} {} {}: {}",
-                entry.timestamp.format("%H:%M:%S.%3f"),
-                entry.level,
-                entry.tag,
-                entry.message
-            );
-            if !regex.matches(&full_text) {
+            if !regex.matches(&entry.raw_line) {
                 return false;
             }
         }
