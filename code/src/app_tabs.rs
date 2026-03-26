@@ -161,6 +161,7 @@ pub struct AppState {
     pub export_manager: Rc<RefCell<ExportManager>>,
     pub enhanced_filter: Rc<RefCell<EnhancedRegexFilter>>,
     pub command_shortcuts_list: Option<ListBox>,  // 命令快捷方式列表
+    pub sidebar_visible: bool,  // 侧边栏是否可见
 }
 
 impl AppState {
@@ -174,6 +175,7 @@ impl AppState {
             export_manager: Rc::new(RefCell::new(ExportManager::new())),
             enhanced_filter: Rc::new(RefCell::new(EnhancedRegexFilter::new())),
             command_shortcuts_list: None,
+            sidebar_visible: true,
         }
     }
 }
@@ -194,20 +196,6 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
         .margin_start(6)
         .margin_end(6)
         .build();
-
-    // 创建工具栏
-    let toolbar = create_toolbar(state.clone(), &window);
-    vbox.append(&toolbar);
-
-    // 创建过滤栏
-    let (filter_bar, filter_entry) = create_filter_bar(state.clone(), &window);
-    vbox.append(&filter_bar);
-
-    // 保存过滤输入框到状态
-    {
-        let mut state_ref = state.borrow_mut();
-        state_ref.filter_entry = Some(filter_entry.clone());
-    }
 
     // 创建搜索栏（默认隐藏）
     let search_bar = Rc::new(RefCell::new(SearchBar::new()));
@@ -232,6 +220,20 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     paned.set_shrink_start_child(false);  // 不允许收缩侧边栏
     paned.set_resize_start_child(true);   // 允许调整大小
     paned.set_position(200);  // 默认宽度
+
+    // 创建工具栏（传入sidebar引用用于切换显示/隐藏）
+    let toolbar = create_toolbar(state.clone(), &window, sidebar.clone());
+    vbox.append(&toolbar);
+
+    // 创建过滤栏
+    let (filter_bar, filter_entry) = create_filter_bar(state.clone(), &window);
+    vbox.append(&filter_bar);
+
+    // 保存过滤输入框到状态
+    {
+        let mut state_ref = state.borrow_mut();
+        state_ref.filter_entry = Some(filter_entry.clone());
+    }
 
     // 保存快捷方式列表引用
     {
@@ -712,11 +714,33 @@ fn refresh_tab_titles(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
     glib::ControlFlow::Continue
 }
 
-fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> gtk4::Box {
+fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow, sidebar: gtk4::Box) -> gtk4::Box {
     let toolbar = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(6)
         .build();
+
+    // 侧边栏切换按钮
+    let sidebar_toggle_btn = Button::builder()
+        .icon_name("sidebar-show-symbolic")
+        .tooltip_text("显示/隐藏命令快捷方式")
+        .build();
+    toolbar.append(&sidebar_toggle_btn);
+
+    // 切换侧边栏显示/隐藏
+    let state_clone = state.clone();
+    let sidebar_clone = sidebar.clone();
+    sidebar_toggle_btn.connect_clicked(move |_| {
+        let visible = {
+            let mut state_ref = state_clone.borrow_mut();
+            state_ref.sidebar_visible = !state_ref.sidebar_visible;
+            state_ref.sidebar_visible
+        };
+        sidebar_clone.set_visible(visible);
+    });
+
+    let sep0 = Separator::new(Orientation::Vertical);
+    toolbar.append(&sep0);
 
     // 新建标签页按钮（本地日志源）
     let new_tab_btn = Button::builder()
@@ -879,18 +903,28 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
                 }
 
                 // 使用 channel 在后台线程执行连接
-                let (sender, receiver) = std::sync::mpsc::channel::<Result<(), String>>();
+                let (sender, receiver) = std::sync::mpsc::channel::<Result<String, String>>();
                 let ssh_config_for_thread = ssh_config.clone();
 
                 std::thread::spawn(move || {
-                    let test_cmd = "echo connected".to_string();
-                    let mut source = SshSource::new(ssh_config_for_thread, test_cmd);
+                    // 执行 pwd 获取当前目录
+                    let mut source = SshSource::new(ssh_config_for_thread, "pwd".to_string());
 
                     match source.start() {
                         Ok(_) => {
-                            // 连接成功，停止测试命令
+                            // 读取 pwd 输出
+                            let mut current_path = String::from("~");
+
+                            // 等待输出
+                            if let Some(entry) = source.recv_timeout(std::time::Duration::from_secs(5)) {
+                                let path = entry.raw_line.trim().to_string();
+                                if !path.is_empty() && path.starts_with('/') {
+                                    current_path = path;
+                                }
+                            }
+
                             let _ = source.stop();
-                            let _ = sender.send(Ok(()));
+                            let _ = sender.send(Ok(current_path));
                         }
                         Err(e) => {
                             let _ = sender.send(Err(e.to_string()));
@@ -906,10 +940,12 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow) -> g
 
                 glib::idle_add_local(move || {
                     match receiver.try_recv() {
-                        Ok(Ok(_)) => {
+                        Ok(Ok(current_path)) => {
                             // 连接成功
                             tab_clone.borrow_mut().set_ssh_connected(true);
+                            tab_clone.borrow_mut().set_current_path(current_path.clone());
                             tab_clone.borrow_mut().append_terminal_output("已连接");
+                            tab_clone.borrow_mut().append_terminal_output(&format!("当前目录: {}", current_path));
                             tab_clone.borrow_mut().append_terminal_output("输入命令开始执行...\n");
 
                             if let Some(ref tm) = state_ref_clone.borrow().tab_manager {

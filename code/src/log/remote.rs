@@ -109,6 +109,11 @@ impl SshSource {
     pub fn get_error(&self) -> Option<String> {
         self.error.lock().ok()?.clone()
     }
+
+    /// 带超时的接收
+    pub fn recv_timeout(&mut self, timeout: std::time::Duration) -> Option<LogEntry> {
+        self.entries.recv_timeout(timeout).ok()
+    }
 }
 
 impl LogSource for SshSource {
