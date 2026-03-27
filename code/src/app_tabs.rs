@@ -1684,10 +1684,9 @@ fn add_shortcut_item(
             let _ = state_ref.config.save();
         }
 
-        // 保存滚动位置
-        let saved_value = list_clone.parent()
-            .and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok())
-            .map(|sw| sw.vadjustment().value());
+        // 获取滚动位置
+        let sw = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
+        let saved_value = sw.as_ref().map(|s| s.vadjustment().value());
 
         // 重建列表
         while let Some(child) = list_clone.first_child() {
@@ -1699,13 +1698,17 @@ fn add_shortcut_item(
             add_shortcut_item(&list_clone, &shortcut.name, &shortcut.command, state_clone.clone(), i);
         }
 
-        // 恢复滚动位置
-        if let Some(value) = saved_value {
-            let list_clone2 = list_clone.clone();
-            glib::timeout_add_local_once(std::time::Duration::from_millis(200), move || {
-                if let Some(sw) = list_clone2.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-                    sw.vadjustment().set_value(value);
-                }
+        // 多次恢复滚动位置
+        if let (Some(sw), Some(value)) = (sw, saved_value) {
+            let adj = sw.vadjustment();
+            adj.set_value(value);
+            let adj_clone = adj.clone();
+            glib::idle_add_local_once(move || {
+                adj_clone.set_value(value);
+            });
+            let adj_clone2 = adj.clone();
+            glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
+                adj_clone2.set_value(value);
             });
         }
     });
@@ -1716,48 +1719,52 @@ fn add_shortcut_item(
 /// 上移行 - 直接操作 ListBox 行顺序
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
-    if index > 0 {
-        // 在配置中交换顺序
-        {
-            let mut state_ref = state.borrow_mut();
-            let shortcuts = &mut state_ref.config.command_shortcuts;
-            let idx = index as usize;
-            if shortcuts.len() > idx {
-                shortcuts.swap(idx, idx - 1);
-                let _ = state_ref.config.save();
-            }
-        }
 
-        // 获取 ScrolledWindow
-        let sw = match list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-            Some(s) => s,
-            None => return,
-        };
-
-        // 保存行相对于视口的位置
-        let adj = sw.vadjustment();
-        let row_allocation = row.allocation();
-        let row_y = row_allocation.y() as f64;
-        let scroll_value = adj.value();
-        let row_offset_from_viewport = row_y - scroll_value;  // 行顶部到视口顶部的距离
-
-        // 增加 row 的引用计数
-        let row_ref = row.clone();
-
-        // 移除并重新插入
-        list.remove(row);
-        list.insert(&row_ref, index - 1);
-
-        // 延迟恢复：确保行在相同的视口相对位置
-        let row_for_closure = row_ref.clone();
-        let adj_clone = adj.clone();
-        glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
-            let new_allocation = row_for_closure.allocation();
-            let new_row_y = new_allocation.y() as f64;
-            // 设置滚动位置使行保持相同的视口相对位置
-            adj_clone.set_value(new_row_y - row_offset_from_viewport);
-        });
+    if index <= 0 {
+        return;
     }
+
+    // 在配置中交换顺序
+    {
+        let mut state_ref = state.borrow_mut();
+        let shortcuts = &mut state_ref.config.command_shortcuts;
+        let idx = index as usize;
+        if shortcuts.len() > idx {
+            shortcuts.swap(idx, idx - 1);
+            let _ = state_ref.config.save();
+        }
+    }
+
+    // 获取 ScrolledWindow
+    let sw = match list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+        Some(s) => s,
+        None => return,
+    };
+
+    // 保存滚动位置
+    let adj = sw.vadjustment();
+    let saved_value = adj.value();
+
+    // 增加 row 的引用计数
+    let row_ref = row.clone();
+
+    // 移除并重新插入
+    list.remove(row);
+    list.insert(&row_ref, index - 1);
+
+    // 多次尝试恢复滚动位置
+    let adj_clone = adj.clone();
+    // 立即恢复
+    adj.set_value(saved_value);
+    // idle 时恢复
+    glib::idle_add_local_once(move || {
+        adj_clone.set_value(saved_value);
+    });
+    // 100ms 后再恢复一次
+    let adj_clone2 = adj.clone();
+    glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
+        adj_clone2.set_value(saved_value);
+    });
 }
 
 /// 执行快捷方式命令
@@ -1880,13 +1887,19 @@ fn show_edit_shortcut_dialog(
                 }
 
                 // 恢复滚动位置
-                if let Some(value) = saved_value {
-                    let list_clone2 = list_clone.clone();
-                    glib::timeout_add_local_once(std::time::Duration::from_millis(200), move || {
-                        if let Some(sw) = list_clone2.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-                            sw.vadjustment().set_value(value);
-                        }
-                    });
+                if let Some(sw) = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+                    let adj = sw.vadjustment();
+                    if let Some(value) = saved_value {
+                        adj.set_value(value);
+                        let adj_clone = adj.clone();
+                        glib::idle_add_local_once(move || {
+                            adj_clone.set_value(value);
+                        });
+                        let adj_clone2 = adj.clone();
+                        glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
+                            adj_clone2.set_value(value);
+                        });
+                    }
                 }
             }
         }
