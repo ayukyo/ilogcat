@@ -1719,8 +1719,10 @@ fn add_shortcut_item(
 /// 上移行 - 直接操作 ListBox 行顺序
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
+    eprintln!("DEBUG move_row_up: index={}", index);
 
     if index <= 0 {
+        eprintln!("DEBUG: index <= 0, skipping");
         return;
     }
 
@@ -1729,42 +1731,43 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         let mut state_ref = state.borrow_mut();
         let shortcuts = &mut state_ref.config.command_shortcuts;
         let idx = index as usize;
+        eprintln!("DEBUG: shortcuts.len()={}, idx={}", shortcuts.len(), idx);
         if shortcuts.len() > idx {
             shortcuts.swap(idx, idx - 1);
             let _ = state_ref.config.save();
+            eprintln!("DEBUG: swapped {} and {}", idx, idx - 1);
         }
     }
 
-    // 获取 ScrolledWindow
-    let sw = match list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-        Some(s) => s,
-        None => return,
-    };
+    // 获取 ScrolledWindow - 使用 ancestor 方法
+    let sw = list.ancestor(gtk4::ScrolledWindow::static_type())
+        .and_then(|w| w.downcast::<gtk4::ScrolledWindow>().ok());
 
-    // 保存滚动位置
-    let adj = sw.vadjustment();
-    let saved_value = adj.value();
+    let saved_value = sw.as_ref().map(|s| s.vadjustment().value());
+    eprintln!("DEBUG: ScrolledWindow found: {}, saved_value: {:?}", sw.is_some(), saved_value);
 
     // 增加 row 的引用计数
     let row_ref = row.clone();
 
     // 移除并重新插入
+    eprintln!("DEBUG: removing and inserting row");
     list.remove(row);
     list.insert(&row_ref, index - 1);
+    eprintln!("DEBUG: done");
 
-    // 多次尝试恢复滚动位置
-    let adj_clone = adj.clone();
-    // 立即恢复
-    adj.set_value(saved_value);
-    // idle 时恢复
-    glib::idle_add_local_once(move || {
-        adj_clone.set_value(saved_value);
-    });
-    // 100ms 后再恢复一次
-    let adj_clone2 = adj.clone();
-    glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
-        adj_clone2.set_value(saved_value);
-    });
+    // 恢复滚动位置
+    if let (Some(sw), Some(value)) = (sw, saved_value) {
+        let adj = sw.vadjustment();
+        adj.set_value(value);
+        let adj_clone = adj.clone();
+        glib::idle_add_local_once(move || {
+            adj_clone.set_value(value);
+        });
+        let adj_clone2 = adj.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
+            adj_clone2.set_value(value);
+        });
+    }
 }
 
 /// 执行快捷方式命令
