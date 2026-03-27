@@ -1759,11 +1759,6 @@ fn add_shortcut_item(
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index() as usize;
     if index > 0 {
-        // 保存滚动位置
-        let scroll_pos = list.parent()
-            .and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok())
-            .map(|sw| sw.vadjustment().value());
-
         // 在配置中交换顺序
         {
             let mut state_ref = state.borrow_mut();
@@ -1785,15 +1780,28 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
             add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i);
         }
 
-        // 延迟恢复滚动位置（等待 GTK 完成布局）
-        if let Some(pos) = scroll_pos {
-            let list_clone = list.clone();
-            glib::idle_add_local_once(move || {
+        // 延迟滚动到移动后的行位置（index - 1），确保布局完成
+        let new_index = index - 1;
+        let list_clone = list.clone();
+
+        // 使用 timeout_add 确保布局完成后再滚动
+        glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
+            if let Some(new_row) = list_clone.row_at_index(new_index as i32) {
+                // 获取行的位置并滚动到可见
                 if let Some(sw) = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-                    sw.vadjustment().set_value(pos);
+                    let adjustment = sw.vadjustment();
+                    // 获取行的垂直位置（相对于 ListBox）
+                    let allocation = new_row.allocation();
+                    let row_y = allocation.y() as f64;
+                    let row_height = allocation.height() as f64;
+                    let page_size = adjustment.page_size();
+
+                    // 计算滚动位置，确保行在视口中间位置
+                    let target = (row_y - page_size / 2.0 + row_height / 2.0).max(0.0);
+                    adjustment.set_value(target);
                 }
-            });
-        }
+            }
+        });
     }
 }
 
