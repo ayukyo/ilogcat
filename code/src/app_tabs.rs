@@ -1755,53 +1755,29 @@ fn add_shortcut_item(
     list.append(&row);
 }
 
-/// 上移行 - 通过交换配置数据来实现，避免 ListBox 自动滚动问题
+/// 上移行 - 直接操作 ListBox 行顺序
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
-    let index = row.index() as usize;
+    let index = row.index();
     if index > 0 {
         // 在配置中交换顺序
         {
             let mut state_ref = state.borrow_mut();
             let shortcuts = &mut state_ref.config.command_shortcuts;
-            if shortcuts.len() > index {
-                shortcuts.swap(index, index - 1);
+            let idx = index as usize;
+            if shortcuts.len() > idx {
+                shortcuts.swap(idx, idx - 1);
                 let _ = state_ref.config.save();
             }
         }
 
-        // 清空并重新填充列表
-        while let Some(child) = list.first_child() {
-            list.remove(&child);
-        }
+        // 增加 row 的引用计数，防止 remove 后被释放
+        let row_ref = row.clone();
 
-        // 重新添加所有项
-        let shortcuts = state.borrow().config.command_shortcuts.clone();
-        for (i, shortcut) in shortcuts.into_iter().enumerate() {
-            add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i);
-        }
+        // 先移除行
+        list.remove(row);
 
-        // 延迟滚动到移动后的行位置（index - 1），确保布局完成
-        let new_index = index - 1;
-        let list_clone = list.clone();
-
-        // 使用 timeout_add 确保布局完成后再滚动
-        glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
-            if let Some(new_row) = list_clone.row_at_index(new_index as i32) {
-                // 获取行的位置并滚动到可见
-                if let Some(sw) = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-                    let adjustment = sw.vadjustment();
-                    // 获取行的垂直位置（相对于 ListBox）
-                    let allocation = new_row.allocation();
-                    let row_y = allocation.y() as f64;
-                    let row_height = allocation.height() as f64;
-                    let page_size = adjustment.page_size();
-
-                    // 计算滚动位置，确保行在视口中间位置
-                    let target = (row_y - page_size / 2.0 + row_height / 2.0).max(0.0);
-                    adjustment.set_value(target);
-                }
-            }
-        });
+        // 在新位置插入（index - 1）
+        list.insert(&row_ref, index - 1);
     }
 }
 
