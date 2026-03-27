@@ -78,6 +78,10 @@ pub struct SshSource {
     error: Arc<Mutex<Option<String>>>,
     /// 服务器时间偏移量（服务器时间 - 本地时间，单位：秒）
     time_offset: Arc<Mutex<Option<i64>>>,
+    /// 是否是终端模式（用户交互命令）
+    terminal_mode: bool,
+    /// 最后活动时间
+    last_activity: Arc<Mutex<Option<std::time::Instant>>>,
 }
 
 impl SshSource {
@@ -92,7 +96,14 @@ impl SshSource {
             session: None,
             error: Arc::new(Mutex::new(None)),
             time_offset: Arc::new(Mutex::new(None)),
+            terminal_mode: false,
+            last_activity: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// 设置终端模式
+    pub fn set_terminal_mode(&mut self, mode: bool) {
+        self.terminal_mode = mode;
     }
 
     /// 获取服务器名称
@@ -210,6 +221,7 @@ impl LogSource for SshSource {
             self.command.clone(),
         );
         let time_offset_for_thread = time_offset;
+        let terminal_mode = self.terminal_mode;
 
         // 启动读取线程 - 同时读取 stdout 和 stderr
         let running_clone = running.clone();
@@ -278,9 +290,11 @@ impl LogSource for SshSource {
 
             let _ = channel.wait_close();
 
-            // 注意：不要在线程结束时设置 running=false
-            // 因为终端模式下命令执行完是很正常的，不应该触发重连
-            // 只有在 stop() 被调用时才设置 running=false
+            // 非终端模式下（如文件监控），线程结束时设置 running=false
+            // 以便 UI 能检测到连接断开
+            if !terminal_mode {
+                running_clone.store(false, Ordering::SeqCst);
+            }
         });
 
         self.session = Some(session);

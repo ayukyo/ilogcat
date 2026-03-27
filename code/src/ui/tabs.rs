@@ -859,6 +859,7 @@ impl TabManager {
                         let should_update_path = starts_with_cd;
 
                         let mut source = crate::log::SshSource::new(ssh_cfg.clone(), actual_cmd.clone());
+                        source.set_terminal_mode(true);  // 终端交互模式
                         tab_clone.borrow_mut().set_source_info(SourceType::SshCommand(host, combined_cmd));
 
                         if let Err(e) = source.start() {

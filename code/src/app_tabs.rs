@@ -35,8 +35,14 @@ fn apply_theme(theme: &str) {
                     color: #ffffff;
                 }
                 textview {
-                    background-color: #1e1e1e;
+                    background-color: transparent;
                     color: #ffffff;
+                }
+                .cmd-input-frame {
+                    background-color: #2d2d2d;
+                    border-radius: 0.3em;
+                    border: 1px solid #3c3c3c;
+                    padding: 0.5em;
                 }
                 button {
                     background-color: #3c3c3c;
@@ -64,8 +70,14 @@ fn apply_theme(theme: &str) {
                     color: #000000;
                 }
                 textview {
-                    background-color: #ffffff;
+                    background-color: transparent;
                     color: #000000;
+                }
+                .cmd-input-frame {
+                    background-color: #ffffff;
+                    border-radius: 0.3em;
+                    border: 1px solid #e0e0e0;
+                    padding: 0.5em;
                 }
                 button {
                     background-color: #f0f0f0;
@@ -84,6 +96,8 @@ fn apply_theme(theme: &str) {
                     background-color: transparent;
                 }
                 .shortcut-bg { border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
+                .shortcut-name { padding: 0; }
+                .shortcut-name label { justify-content: start; }
             ";
             provider.load_from_data(css);
         }
@@ -107,6 +121,7 @@ pub struct AppState {
     pub enhanced_filter: Rc<RefCell<EnhancedRegexFilter>>,
     pub command_shortcuts_list: Option<ListBox>,  // 命令快捷方式列表
     pub sidebar_visible: bool,  // 侧边栏是否可见
+    pub shortcuts_edit_mode: bool,  // 快捷方式编辑模式
 }
 
 impl AppState {
@@ -121,6 +136,7 @@ impl AppState {
             enhanced_filter: Rc::new(RefCell::new(EnhancedRegexFilter::new())),
             command_shortcuts_list: None,
             sidebar_visible: true,
+            shortcuts_edit_mode: false,
         }
     }
 }
@@ -1485,6 +1501,14 @@ fn create_command_sidebar(state: Rc<RefCell<AppState>>) -> (gtk4::Box, ListBox) 
         .build();
     title_box.append(&add_btn);
 
+    // 编辑模式切换按钮（使用 ToggleButton 显示选中状态）
+    let edit_mode_btn = gtk4::ToggleButton::builder()
+        .icon_name("document-edit-symbolic")
+        .tooltip_text("显示/隐藏编辑按钮")
+        .active(state.borrow().shortcuts_edit_mode)
+        .build();
+    title_box.append(&edit_mode_btn);
+
     sidebar.append(&title_box);
 
     // 快捷方式列表（可滚动）
@@ -1501,9 +1525,10 @@ fn create_command_sidebar(state: Rc<RefCell<AppState>>) -> (gtk4::Box, ListBox) 
     sidebar.append(&scrolled);
 
     // 从配置加载已有快捷方式
+    let edit_mode = state.borrow().shortcuts_edit_mode;
     let shortcuts = state.borrow().config.command_shortcuts.clone();
     for (index, shortcut) in shortcuts.into_iter().enumerate() {
-        add_shortcut_item(&shortcuts_list, &shortcut.name, &shortcut.command, state.clone(), index);
+        add_shortcut_item(&shortcuts_list, &shortcut.name, &shortcut.command, state.clone(), index, edit_mode);
     }
 
     // 添加按钮点击事件
@@ -1516,6 +1541,25 @@ fn create_command_sidebar(state: Rc<RefCell<AppState>>) -> (gtk4::Box, ListBox) 
             shortcuts_list_clone.clone(),
             state_clone.clone(),
         );
+    });
+
+    // 编辑模式切换按钮点击事件
+    let shortcuts_list_clone = shortcuts_list.clone();
+    let state_clone = state.clone();
+    let edit_mode_btn_clone = edit_mode_btn.clone();
+    edit_mode_btn.connect_toggled(move |_| {
+        let new_mode = edit_mode_btn_clone.is_active();
+        state_clone.borrow_mut().shortcuts_edit_mode = new_mode;
+
+        // 重建列表
+        while let Some(child) = shortcuts_list_clone.first_child() {
+            shortcuts_list_clone.remove(&child);
+        }
+
+        let shortcuts = state_clone.borrow().config.command_shortcuts.clone();
+        for (i, shortcut) in shortcuts.into_iter().enumerate() {
+            add_shortcut_item(&shortcuts_list_clone, &shortcut.name, &shortcut.command, state_clone.clone(), i, new_mode);
+        }
     });
 
     (sidebar, shortcuts_list)
@@ -1564,6 +1608,7 @@ fn add_shortcut_item(
     command: &str,
     state: Rc<RefCell<AppState>>,
     color_index: usize,
+    show_edit_buttons: bool,
 ) {
     // 使用黄金分割法分配色相，确保相邻项颜色差异大
     // 黄金角度约 137.5 度，这样每个相邻项色相差 137.5 度，视觉上差异最大
@@ -1599,41 +1644,58 @@ fn add_shortcut_item(
         .css_classes(vec!["shortcut-bg".to_string(), format!("shortcut-bg-dynamic-{}", color_index)])
         .build();
 
-    // 名称按钮（点击执行）
+    // 名称按钮（点击执行）- 文字左对齐
     let name_btn = Button::builder()
         .label(name)
         .hexpand(true)
-        .halign(gtk4::Align::Start)
+        .halign(gtk4::Align::Fill)
         .tooltip_text(&format!("{}: {}", name, command))
-        .css_classes(vec!["flat".to_string()])
-        .width_request(100)
+        .css_classes(vec!["flat".to_string(), "shortcut-name".to_string()])
         .build();
 
-    // 上移按钮
-    let up_btn = Button::builder()
-        .icon_name("go-up-symbolic")
-        .css_classes(vec!["flat".to_string()])
-        .tooltip_text("上移")
-        .build();
-
-    // 编辑按钮
-    let edit_btn = Button::builder()
-        .icon_name("document-edit-symbolic")
-        .css_classes(vec!["flat".to_string()])
-        .tooltip_text("编辑")
-        .build();
-
-    // 删除按钮
-    let delete_btn = Button::builder()
-        .icon_name("user-trash-symbolic")
-        .css_classes(vec!["flat".to_string()])
-        .tooltip_text("删除")
-        .build();
+    // 设置按钮内部 label 左对齐
+    if let Some(label) = name_btn.first_child().and_then(|c| c.downcast::<gtk4::Label>().ok()) {
+        label.set_halign(gtk4::Align::Start);
+        label.set_hexpand(true);
+    }
 
     row_box.append(&name_btn);
-    row_box.append(&up_btn);
-    row_box.append(&edit_btn);
-    row_box.append(&delete_btn);
+
+    // 根据设置添加编辑按钮（先添加到 row_box，再创建 row，最后设置回调）
+    let mut up_btn_opt = None;
+    let mut edit_btn_opt = None;
+    let mut delete_btn_opt = None;
+
+    if show_edit_buttons {
+        // 上移按钮
+        let up_btn = Button::builder()
+            .icon_name("go-up-symbolic")
+            .css_classes(vec!["flat".to_string()])
+            .tooltip_text("上移")
+            .build();
+
+        // 编辑按钮
+        let edit_btn = Button::builder()
+            .icon_name("document-edit-symbolic")
+            .css_classes(vec!["flat".to_string()])
+            .tooltip_text("编辑")
+            .build();
+
+        // 删除按钮
+        let delete_btn = Button::builder()
+            .icon_name("user-trash-symbolic")
+            .css_classes(vec!["flat".to_string()])
+            .tooltip_text("删除")
+            .build();
+
+        row_box.append(&up_btn);
+        row_box.append(&edit_btn);
+        row_box.append(&delete_btn);
+
+        up_btn_opt = Some(up_btn);
+        edit_btn_opt = Some(edit_btn);
+        delete_btn_opt = Some(delete_btn);
+    }
 
     let row = ListBoxRow::builder()
         .child(&row_box)
@@ -1647,66 +1709,71 @@ fn add_shortcut_item(
         execute_shortcut_command(state_clone.clone(), &command_for_exec);
     });
 
-    // 上移按钮
-    let list_clone = list.clone();
-    let row_clone = row.clone();
-    let state_clone = state.clone();
-    up_btn.connect_clicked(move |_| {
-        move_row_up(&list_clone, &row_clone, state_clone.clone());
-    });
+    // 设置编辑按钮回调
+    if let Some(up_btn) = up_btn_opt {
+        let list_clone = list.clone();
+        let state_clone = state.clone();
+        let row_clone = row.clone();
+        up_btn.connect_clicked(move |_| {
+            move_row_up(&list_clone, &row_clone, state_clone.clone());
+        });
+    }
 
-    // 编辑按钮
-    let state_clone = state.clone();
-    let list_clone = list.clone();
-    let name_clone = name.to_string();
-    let command_clone = command.to_string();
-    edit_btn.connect_clicked(move |_| {
-        show_edit_shortcut_dialog(
-            Some(&name_clone),
-            Some(&command_clone),
-            list_clone.clone(),
-            state_clone.clone(),
-        );
-    });
+    if let Some(edit_btn) = edit_btn_opt {
+        let state_clone = state.clone();
+        let list_clone = list.clone();
+        let name_clone = name.to_string();
+        let command_clone = command.to_string();
+        edit_btn.connect_clicked(move |_| {
+            show_edit_shortcut_dialog(
+                Some(&name_clone),
+                Some(&command_clone),
+                list_clone.clone(),
+                state_clone.clone(),
+            );
+        });
+    }
 
-    // 删除按钮
-    let state_clone = state.clone();
-    let list_clone = list.clone();
-    let name_clone = name.to_string();
-    delete_btn.connect_clicked(move |_| {
-        // 从配置中删除
-        {
-            let mut state_ref = state_clone.borrow_mut();
-            state_ref.config.command_shortcuts.retain(|s| s.name != name_clone);
-            let _ = state_ref.config.save();
-        }
-
-        // 获取滚动位置
-        let sw = list_clone.ancestor(gtk4::ScrolledWindow::static_type())
-            .and_then(|w| w.downcast::<gtk4::ScrolledWindow>().ok());
-        let saved_value = sw.as_ref().map(|s| s.vadjustment().value());
-
-        // 重建列表
-        while let Some(child) = list_clone.first_child() {
-            list_clone.remove(&child);
-        }
-
-        let shortcuts = state_clone.borrow().config.command_shortcuts.clone();
-        for (i, shortcut) in shortcuts.into_iter().enumerate() {
-            add_shortcut_item(&list_clone, &shortcut.name, &shortcut.command, state_clone.clone(), i);
-        }
-
-        // 延迟恢复滚动位置
-        if let Some(sw) = sw {
-            if let Some(value) = saved_value {
-                let adj = sw.vadjustment();
-                let adj_clone = adj.clone();
-                glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
-                    adj_clone.set_value(value);
-                });
+    if let Some(delete_btn) = delete_btn_opt {
+        let state_clone = state.clone();
+        let list_clone = list.clone();
+        let name_clone = name.to_string();
+        delete_btn.connect_clicked(move |_| {
+            // 从配置中删除
+            {
+                let mut state_ref = state_clone.borrow_mut();
+                state_ref.config.command_shortcuts.retain(|s| s.name != name_clone);
+                let _ = state_ref.config.save();
             }
-        }
-    });
+
+            // 获取滚动位置
+            let sw = list_clone.ancestor(gtk4::ScrolledWindow::static_type())
+                .and_then(|w| w.downcast::<gtk4::ScrolledWindow>().ok());
+            let saved_value = sw.as_ref().map(|s| s.vadjustment().value());
+
+            // 重建列表
+            while let Some(child) = list_clone.first_child() {
+                list_clone.remove(&child);
+            }
+
+            let shortcuts = state_clone.borrow().config.command_shortcuts.clone();
+            let edit_mode = state_clone.borrow().shortcuts_edit_mode;
+            for (i, shortcut) in shortcuts.into_iter().enumerate() {
+                add_shortcut_item(&list_clone, &shortcut.name, &shortcut.command, state_clone.clone(), i, edit_mode);
+            }
+
+            // 延迟恢复滚动位置
+            if let Some(sw) = sw {
+                if let Some(value) = saved_value {
+                    let adj = sw.vadjustment();
+                    let adj_clone = adj.clone();
+                    glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
+                        adj_clone.set_value(value);
+                    });
+                }
+            }
+        });
+    }
 
     list.append(&row);
 }
@@ -1750,8 +1817,9 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     }
 
     let shortcuts = state.borrow().config.command_shortcuts.clone();
+    let edit_mode = state.borrow().shortcuts_edit_mode;
     for (i, shortcut) in shortcuts.into_iter().enumerate() {
-        add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i);
+        add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i, edit_mode);
     }
 
     // 重新设置 ListBox 到 ScrolledWindow
@@ -1788,6 +1856,7 @@ fn show_edit_shortcut_dialog(
         .title(if initial_name.is_some() { "编辑命令" } else { "添加命令" })
         .modal(true)
         .use_header_bar(1)
+        .default_width(600)  // 增加宽度
         .build();
 
     let content = dialog.content_area();
@@ -1817,21 +1886,34 @@ fn show_edit_shortcut_dialog(
     }
     vbox.append(&name_entry);
 
-    // 命令输入
+    // 命令输入（多行文本框）
     let cmd_label = Label::builder()
         .label("命令:")
         .halign(gtk4::Align::Start)
         .build();
     vbox.append(&cmd_label);
 
-    let cmd_entry = Entry::builder()
-        .placeholder_text("要执行的命令")
+    let cmd_textview = gtk4::TextView::builder()
         .hexpand(true)
+        .vexpand(true)
+        .height_request(80)  // 约4行高度
+        .wrap_mode(gtk4::WrapMode::WordChar)
+        .left_margin(8)
+        .right_margin(8)
+        .top_margin(6)
+        .bottom_margin(6)
         .build();
+    let cmd_buffer = cmd_textview.buffer();
     if let Some(cmd) = initial_command {
-        cmd_entry.set_text(cmd);
+        cmd_buffer.set_text(cmd);
     }
-    vbox.append(&cmd_entry);
+
+    // 使用 Frame 包装，让它看起来像 Entry
+    let cmd_frame = gtk4::Frame::builder()
+        .css_classes(vec!["cmd-input-frame".to_string()])
+        .build();
+    cmd_frame.set_child(Some(&cmd_textview));
+    vbox.append(&cmd_frame);
 
     content.append(&vbox);
 
@@ -1842,13 +1924,14 @@ fn show_edit_shortcut_dialog(
     let state_clone = state.clone();
     let list_clone = list.clone();
     let name_entry_clone = name_entry.clone();
-    let cmd_entry_clone = cmd_entry.clone();
+    let cmd_buffer_clone = cmd_buffer.clone();
     let old_name = initial_name.map(|s| s.to_string());
 
     dialog.connect_response(move |dialog, response| {
         if response == gtk4::ResponseType::Accept {
             let name = name_entry_clone.text().to_string();
-            let command = cmd_entry_clone.text().to_string();
+            let (start, end) = cmd_buffer_clone.bounds();
+            let command = cmd_buffer_clone.text(&start, &end, false).to_string();
 
             if !name.is_empty() && !command.is_empty() {
                 // 更新配置
@@ -1876,8 +1959,9 @@ fn show_edit_shortcut_dialog(
                 }
 
                 let shortcuts = state_clone.borrow().config.command_shortcuts.clone();
+                let edit_mode = state_clone.borrow().shortcuts_edit_mode;
                 for (i, shortcut) in shortcuts.into_iter().enumerate() {
-                    add_shortcut_item(&list_clone, &shortcut.name, &shortcut.command, state_clone.clone(), i);
+                    add_shortcut_item(&list_clone, &shortcut.name, &shortcut.command, state_clone.clone(), i, edit_mode);
                 }
 
                 // 恢复滚动位置
