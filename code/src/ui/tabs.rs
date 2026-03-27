@@ -292,7 +292,7 @@ impl LogTab {
     pub fn append_log_entry(&mut self, entry: &LogEntry) {
         self.log_entries.push(entry.clone());
         self.log_count = self.log_entries.len();
-        
+
         // 更新级别统计
         *self.level_counts.entry(entry.level).or_insert(0) += 1;
 

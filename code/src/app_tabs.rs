@@ -1685,7 +1685,8 @@ fn add_shortcut_item(
         }
 
         // 获取滚动位置
-        let sw = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
+        let sw = list_clone.ancestor(gtk4::ScrolledWindow::static_type())
+            .and_then(|w| w.downcast::<gtk4::ScrolledWindow>().ok());
         let saved_value = sw.as_ref().map(|s| s.vadjustment().value());
 
         // 重建列表
@@ -1698,18 +1699,15 @@ fn add_shortcut_item(
             add_shortcut_item(&list_clone, &shortcut.name, &shortcut.command, state_clone.clone(), i);
         }
 
-        // 多次恢复滚动位置
-        if let (Some(sw), Some(value)) = (sw, saved_value) {
-            let adj = sw.vadjustment();
-            adj.set_value(value);
-            let adj_clone = adj.clone();
-            glib::idle_add_local_once(move || {
-                adj_clone.set_value(value);
-            });
-            let adj_clone2 = adj.clone();
-            glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
-                adj_clone2.set_value(value);
-            });
+        // 延迟恢复滚动位置
+        if let Some(sw) = sw {
+            if let Some(value) = saved_value {
+                let adj = sw.vadjustment();
+                let adj_clone = adj.clone();
+                glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
+                    adj_clone.set_value(value);
+                });
+            }
         }
     });
 
@@ -1866,8 +1864,8 @@ fn show_edit_shortcut_dialog(
                 }
 
                 // 保存滚动位置
-                let saved_value = list_clone.parent()
-                    .and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok())
+                let saved_value = list_clone.ancestor(gtk4::ScrolledWindow::static_type())
+                    .and_then(|w| w.downcast::<gtk4::ScrolledWindow>().ok())
                     .map(|sw| sw.vadjustment().value());
 
                 // 重建整个列表
@@ -1881,17 +1879,13 @@ fn show_edit_shortcut_dialog(
                 }
 
                 // 恢复滚动位置
-                if let Some(sw) = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-                    let adj = sw.vadjustment();
+                if let Some(sw) = list_clone.ancestor(gtk4::ScrolledWindow::static_type())
+                    .and_then(|w| w.downcast::<gtk4::ScrolledWindow>().ok()) {
                     if let Some(value) = saved_value {
-                        adj.set_value(value);
+                        let adj = sw.vadjustment();
                         let adj_clone = adj.clone();
-                        glib::idle_add_local_once(move || {
-                            adj_clone.set_value(value);
-                        });
-                        let adj_clone2 = adj.clone();
                         glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
-                            adj_clone2.set_value(value);
+                            adj_clone.set_value(value);
                         });
                     }
                 }
