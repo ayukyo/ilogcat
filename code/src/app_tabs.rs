@@ -1599,48 +1599,8 @@ fn add_shortcut_item(
     state: Rc<RefCell<AppState>>,
     color_index: usize,
 ) {
-    // 32种不同的浅色背景
-    let bg_colors = [
-        "#e3f2fd", // 浅蓝
-        "#fff3e0", // 浅橙
-        "#f3e5f5", // 浅紫
-        "#e0f7fa", // 浅青
-        "#e8f5e9", // 浅绿
-        "#fce4ec", // 浅粉
-        "#fff8e1", // 浅黄
-        "#ede7f6", // 浅淡紫
-        "#e1f5fe", // 浅天蓝
-        "#f1f8e9", // 浅黄绿
-        "#fff9c4", // 浅柠檬黄
-        "#e0f2f1", // 浅薄荷
-        "#fbe9e7", // 浅珊瑚
-        "#e8eaf6", // 浅靛蓝
-        "#f3e5f5", // 浅薰衣草
-        "#e0f7fa", // 浅青绿
-        "#f9fbe7", // 浅黄绿2
-        "#fce4ec", // 浅玫瑰
-        "#fff3e0", // 浅杏色
-        "#e8f5e9", // 浅翠绿
-        "#e1f5fe", // 浅湖蓝
-        "#f5f5f5", // 浅灰
-        "#fff8e1", // 浅琥珀
-        "#ede7f6", // 浅葡萄紫
-        "#e0f2f1", // 浅绿松石
-        "#fce4ec", // 浅桃红
-        "#e3f2fd", // 浅水蓝
-        "#f9fbe7", // 浅橄榄黄
-        "#fff9c4", // 浅向日葵黄
-        "#e8eaf6", // 浅紫藤
-        "#fbe9e7", // 浅三文鱼
-        "#f1f8e9", // 浅草绿
-    ];
-    let bg_color = bg_colors[color_index % bg_colors.len()];
-
-    // 创建带背景色的容器
-    let bg_css = format!(
-        ".shortcut-item-{} {{ background-color: {}; border-radius: 0.3em; padding: 0.15em; }}",
-        color_index % 32, bg_color
-    );
+    // 使用全局 CSS 定义的类名 (shortcut-bg-1 到 shortcut-bg-32)
+    let css_class = format!("shortcut-bg-{}", (color_index % 32) + 1);
 
     let row_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
@@ -1649,19 +1609,8 @@ fn add_shortcut_item(
         .margin_bottom(2)
         .margin_start(4)
         .margin_end(4)
-        .css_classes(vec![format!("shortcut-item-{}", color_index % 32)])
+        .css_classes(vec![css_class])
         .build();
-
-    // 动态添加CSS
-    let provider = gtk4::CssProvider::new();
-    provider.load_from_data(&bg_css);
-    if let Some(display) = gtk4::gdk::Display::default() {
-        gtk4::style_context_add_provider_for_display(
-            &display,
-            &provider,
-            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
-        );
-    }
 
     // 名称按钮（点击执行）
     let name_btn = Button::builder()
@@ -1770,6 +1719,10 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
             }
         }
 
+        // 保存滚动位置
+        let sw = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
+        let saved_scroll = sw.as_ref().map(|s| s.vadjustment().value());
+
         // 增加 row 的引用计数，防止 remove 后被释放
         let row_ref = row.clone();
 
@@ -1779,25 +1732,15 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         // 在新位置插入（index - 1）
         list.insert(&row_ref, index - 1);
 
-        // 滚动到移动后的行，确保它可见
-        if let Some(sw) = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-            let list_clone = list.clone();
-            let row_clone = row_ref.clone();
-            glib::idle_add_local_once(move || {
-                // 获取行的 Y 位置
-                let allocation = row_clone.allocation();
-                let row_y = allocation.y() as f64;
-                let row_height = allocation.height() as f64;
+        // 延迟恢复滚动位置（需要等待 GTK 完成所有布局更新）
+        if let Some(sw) = sw {
+            if let Some(value) = saved_scroll {
                 let adj = sw.vadjustment();
-                let page_size = adj.page_size();
-
-                // 确保行在视口内可见
-                if row_y < adj.value() {
-                    adj.set_value(row_y);
-                } else if row_y + row_height > adj.value() + page_size {
-                    adj.set_value(row_y + row_height - page_size);
-                }
-            });
+                // 使用 timeout 确保在 GTK 所有事件处理完后恢复
+                glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
+                    adj.set_value(value);
+                });
+            }
         }
     }
 }
