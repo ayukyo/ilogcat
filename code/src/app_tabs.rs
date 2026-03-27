@@ -1759,13 +1759,6 @@ fn add_shortcut_item(
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
     if index > 0 {
-        // 获取 ScrolledWindow 和滚动位置
-        let sw_opt = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
-        let scroll_value = sw_opt.as_ref().map(|sw| sw.vadjustment().value());
-
-        // 冻结通知，防止自动滚动（guard drop 时自动解冻）
-        let _guard = sw_opt.as_ref().map(|sw| sw.freeze_notify());
-
         // 在配置中交换顺序
         {
             let mut state_ref = state.borrow_mut();
@@ -1786,9 +1779,25 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         // 在新位置插入（index - 1）
         list.insert(&row_ref, index - 1);
 
-        // 恢复滚动位置
-        if let (Some(sw), Some(value)) = (&sw_opt, scroll_value) {
-            sw.vadjustment().set_value(value);
+        // 滚动到移动后的行，确保它可见
+        if let Some(sw) = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+            let list_clone = list.clone();
+            let row_clone = row_ref.clone();
+            glib::idle_add_local_once(move || {
+                // 获取行的 Y 位置
+                let allocation = row_clone.allocation();
+                let row_y = allocation.y() as f64;
+                let row_height = allocation.height() as f64;
+                let adj = sw.vadjustment();
+                let page_size = adj.page_size();
+
+                // 确保行在视口内可见
+                if row_y < adj.value() {
+                    adj.set_value(row_y);
+                } else if row_y + row_height > adj.value() + page_size {
+                    adj.set_value(row_y + row_height - page_size);
+                }
+            });
         }
     }
 }
