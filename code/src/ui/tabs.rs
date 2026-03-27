@@ -32,6 +32,7 @@ pub struct LogTab {
     pub ssh_config: Option<SshConfig>,  // SSH配置（如果已连接）
     pub ssh_connected: Arc<AtomicBool>,  // SSH连接状态
     pub ssh_reconnecting: Arc<AtomicBool>,  // 是否正在重连中
+    pub ssh_reconnect_time: Arc<std::sync::Mutex<Option<std::time::Instant>>>,  // 重连时间（保护期）
     pub current_path: Option<String>,  // 当前工作目录
     pub pending_cd: bool,  // 是否在等待cd命令的路径更新
     pub terminal_history: Vec<String>,  // 终端历史记录
@@ -97,6 +98,7 @@ impl LogTab {
             ssh_config: None,
             ssh_connected: Arc::new(AtomicBool::new(false)),
             ssh_reconnecting: Arc::new(AtomicBool::new(false)),
+            ssh_reconnect_time: Arc::new(std::sync::Mutex::new(None)),
             current_path: None,
             pending_cd: false,
             terminal_history: Vec::new(),
@@ -530,6 +532,14 @@ impl LogTab {
         if !self.ssh_connected.load(Ordering::SeqCst) {
             return false;
         }
+        // 如果在重连保护期内（最近5秒内重连过），不触发重连
+        if let Ok(guard) = self.ssh_reconnect_time.lock() {
+            if let Some(reconnect_time) = *guard {
+                if reconnect_time.elapsed().as_secs() < 5 {
+                    return false;
+                }
+            }
+        }
         // 如果有日志源且不在运行，说明断开了
         if self.current_source.is_some() && !self.is_source_running() {
             return true;
@@ -547,6 +557,10 @@ impl LogTab {
         self.ssh_reconnecting.store(false, Ordering::SeqCst);
         if success {
             self.ssh_connected.store(true, Ordering::SeqCst);
+            // 记录重连时间（用于保护期）
+            if let Ok(mut guard) = self.ssh_reconnect_time.lock() {
+                *guard = Some(std::time::Instant::now());
+            }
         }
     }
 

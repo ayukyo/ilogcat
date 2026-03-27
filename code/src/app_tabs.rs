@@ -37,7 +37,6 @@ fn apply_theme(theme: &str) {
                 textview {
                     background-color: #1e1e1e;
                     color: #ffffff;
-                    padding: 16px;
                 }
                 button {
                     background-color: #3c3c3c;
@@ -67,7 +66,6 @@ fn apply_theme(theme: &str) {
                 textview {
                     background-color: #ffffff;
                     color: #000000;
-                    padding: 16px;
                 }
                 button {
                     background-color: #f0f0f0;
@@ -1761,30 +1759,25 @@ fn add_shortcut_item(
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
     if index > 0 {
-        // 获取滚动窗口
-        let scrolled_window = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
-
         // 保存滚动位置
-        let scroll_pos = scrolled_window.as_ref().map(|sw| sw.vadjustment().value());
-
-        // 暂时将 ListBox 从 ScrolledWindow 移除，阻止 GTK 自动滚动
-        if let Some(ref sw) = scrolled_window {
-            sw.set_child(None::<&gtk4::Widget>);
-        }
+        let scroll_pos = list.parent()
+            .and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok())
+            .map(|sw| sw.vadjustment().value());
 
         // 执行移动
         list.remove(row);
         list.insert(row, index - 1);
 
-        // 恢复 ListBox 到 ScrolledWindow
-        if let Some(ref sw) = scrolled_window {
-            sw.set_child(Some(list));
-        }
-
-        // 恢复滚动位置
-        if let (Some(sw), Some(pos)) = (scrolled_window, scroll_pos) {
-            let adj = sw.vadjustment();
-            adj.set_value(pos);
+        // 延迟恢复滚动位置
+        if let Some(pos) = scroll_pos {
+            let list_clone = list.clone();
+            let pos_clone = pos;
+            glib::timeout_add_local(std::time::Duration::from_millis(20), move || {
+                if let Some(sw) = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+                    sw.vadjustment().set_value(pos_clone);
+                }
+                glib::ControlFlow::Break
+            });
         }
 
         save_shortcuts_order(list, state);
