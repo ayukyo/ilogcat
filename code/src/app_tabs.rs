@@ -1600,16 +1600,40 @@ fn add_shortcut_item(
     state: Rc<RefCell<AppState>>,
     color_index: usize,
 ) {
-    // 根据索引选择背景色（32种浅色交替显示）
+    // 32种不同的浅色背景
     let bg_colors = [
-        "#e3f2fd", "#fff3e0", "#f3e5f5", "#e0f7fa",
-        "#e8f5e9", "#fce4ec", "#fff8e1", "#ede7f6",
-        "#e0f2f1", "#fff9c4", "#e1f5fe", "#f1f8e9",
-        "#e3f2fd", "#fff3e0", "#f3e5f5", "#e0f7fa",
-        "#e8f5e9", "#fce4ec", "#fff8e1", "#ede7f6",
-        "#e0f2f1", "#fff9c4", "#e1f5fe", "#f1f8e9",
-        "#e3f2fd", "#fff3e0", "#f3e5f5", "#e0f7fa",
-        "#e8f5e9", "#fce4ec", "#fff8e1", "#ede7f6",
+        "#e3f2fd", // 浅蓝
+        "#fff3e0", // 浅橙
+        "#f3e5f5", // 浅紫
+        "#e0f7fa", // 浅青
+        "#e8f5e9", // 浅绿
+        "#fce4ec", // 浅粉
+        "#fff8e1", // 浅黄
+        "#ede7f6", // 浅淡紫
+        "#e1f5fe", // 浅天蓝
+        "#f1f8e9", // 浅黄绿
+        "#fff9c4", // 浅柠檬黄
+        "#e0f2f1", // 浅薄荷
+        "#fbe9e7", // 浅珊瑚
+        "#e8eaf6", // 浅靛蓝
+        "#f3e5f5", // 浅薰衣草
+        "#e0f7fa", // 浅青绿
+        "#f9fbe7", // 浅黄绿2
+        "#fce4ec", // 浅玫瑰
+        "#fff3e0", // 浅杏色
+        "#e8f5e9", // 浅翠绿
+        "#e1f5fe", // 浅湖蓝
+        "#f5f5f5", // 浅灰
+        "#fff8e1", // 浅琥珀
+        "#ede7f6", // 浅葡萄紫
+        "#e0f2f1", // 浅绿松石
+        "#fce4ec", // 浅桃红
+        "#e3f2fd", // 浅水蓝
+        "#f9fbe7", // 浅橄榄黄
+        "#fff9c4", // 浅向日葵黄
+        "#e8eaf6", // 浅紫藤
+        "#fbe9e7", // 浅三文鱼
+        "#f1f8e9", // 浅草绿
     ];
     let bg_color = bg_colors[color_index % bg_colors.len()];
 

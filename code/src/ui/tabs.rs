@@ -66,7 +66,7 @@ impl LogTab {
         // 使用 CSS 设置内边距，em 单位会自动适应字体大小和屏幕 DPI
         let css_provider = gtk4::CssProvider::new();
         css_provider.load_from_data(
-            "textview { padding: 0.8em; }"
+            "textview { padding: 1.2em; }"
         );
         text_view.style_context().add_provider(
             &css_provider,
