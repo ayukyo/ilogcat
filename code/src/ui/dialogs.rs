@@ -452,12 +452,12 @@ where
     F: Fn(PathBuf) + 'static,
 {
     let dialog = FileChooserDialog::new(
-        Some("Export Settings"),
+        Some(&t(I18nKey::DialogExportSettings)),
         Some(parent),
         FileChooserAction::Save,
         &[
             (&t(I18nKey::ButtonCancel), ResponseType::Cancel),
-            ("Export", ResponseType::Accept),
+            (&t(I18nKey::ButtonExport), ResponseType::Accept),
         ],
     );
 
@@ -507,7 +507,7 @@ where
         FileChooserAction::Open,
         &[
             (&t(I18nKey::ButtonCancel), ResponseType::Cancel),
-            ("Import", ResponseType::Accept),
+            (&t(I18nKey::ButtonImport), ResponseType::Accept),
         ],
     );
 
