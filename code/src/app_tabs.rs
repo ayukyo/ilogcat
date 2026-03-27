@@ -533,9 +533,6 @@ fn refresh_logs(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
                 return glib::ControlFlow::Continue;
             }
 
-            // 检查是否是SSH终端模式
-            let is_ssh_terminal = tab.borrow().ssh_config.is_some();
-
             // 收集日志条目
             let entries: Vec<LogEntry> = {
                 let mut tab_ref = tab.borrow_mut();
