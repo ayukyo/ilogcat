@@ -373,15 +373,11 @@ impl LogTab {
             return;
         }
 
-        // 使用 glib::idle_add 确保在 UI 更新后执行滚动
-        let text_view = self.text_view.clone();
-        glib::idle_add_local_once(move || {
-            if let Some(vadj) = text_view.vadjustment() {
-                let upper = vadj.upper();
-                let page_size = vadj.page_size();
-                vadj.set_value(upper - page_size);
-            }
-        });
+        // 使用 scroll_to_mark 滚动到缓冲区末尾，更可靠
+        let end_mark = self.text_buffer.create_mark(None, &self.text_buffer.end_iter(), false);
+        self.text_view.scroll_to_mark(&end_mark, 0.0, true, 0.0, 1.0);
+        // 删除临时 mark
+        self.text_buffer.delete_mark(&end_mark);
     }
     
     /// 设置智能滚动事件监听
