@@ -37,6 +37,7 @@ fn apply_theme(theme: &str) {
                 textview {
                     background-color: #1e1e1e;
                     color: #ffffff;
+                    padding: 16px;
                 }
                 button {
                     background-color: #3c3c3c;
@@ -66,6 +67,7 @@ fn apply_theme(theme: &str) {
                 textview {
                     background-color: #ffffff;
                     color: #000000;
+                    padding: 16px;
                 }
                 button {
                     background-color: #f0f0f0;
@@ -1768,12 +1770,15 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         list.remove(row);
         list.insert(row, index - 1);
 
-        // 恢复滚动位置
+        // 使用 idle_add 延迟恢复滚动位置（在 GTK 更新后）
         if let Some(pos) = scroll_pos {
-            if let Some(sw) = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-                let adj = sw.vadjustment();
-                adj.set_value(pos);
-            }
+            let list_clone = list.clone();
+            glib::idle_add_local_once(move || {
+                if let Some(sw) = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+                    let adj = sw.vadjustment();
+                    adj.set_value(pos);
+                }
+            });
         }
 
         save_shortcuts_order(list, state);
