@@ -1663,7 +1663,6 @@ fn add_shortcut_item(
     let list_clone = list.clone();
     let name_clone = name.to_string();
     let command_clone = command.to_string();
-    let row_clone = row.clone();
     edit_btn.connect_clicked(move |_| {
         show_edit_shortcut_dialog(
             Some(&name_clone),
@@ -1671,15 +1670,12 @@ fn add_shortcut_item(
             list_clone.clone(),
             state_clone.clone(),
         );
-        // 移除旧行
-        list_clone.remove(&row_clone);
     });
 
     // 删除按钮
     let state_clone = state.clone();
     let list_clone = list.clone();
     let name_clone = name.to_string();
-    let row_clone = row.clone();
     delete_btn.connect_clicked(move |_| {
         // 从配置中删除
         {
@@ -1687,14 +1683,37 @@ fn add_shortcut_item(
             state_ref.config.command_shortcuts.retain(|s| s.name != name_clone);
             let _ = state_ref.config.save();
         }
-        // 从列表中移除
-        list_clone.remove(&row_clone);
+
+        // 保存滚动位置
+        let saved_value = list_clone.parent()
+            .and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok())
+            .map(|sw| sw.vadjustment().value());
+
+        // 重建列表
+        while let Some(child) = list_clone.first_child() {
+            list_clone.remove(&child);
+        }
+
+        let shortcuts = state_clone.borrow().config.command_shortcuts.clone();
+        for (i, shortcut) in shortcuts.into_iter().enumerate() {
+            add_shortcut_item(&list_clone, &shortcut.name, &shortcut.command, state_clone.clone(), i);
+        }
+
+        // 恢复滚动位置
+        if let Some(value) = saved_value {
+            let list_clone2 = list_clone.clone();
+            glib::idle_add_local_once(move || {
+                if let Some(sw) = list_clone2.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+                    sw.vadjustment().set_value(value);
+                }
+            });
+        }
     });
 
     list.append(&row);
 }
 
-/// 上移行 - 直接操作 ListBox 行顺序
+/// 上移行 - 通过重建列表实现
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
     if index > 0 {
@@ -1709,31 +1728,28 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
             }
         }
 
-        // 获取 ScrolledWindow
-        let sw = match list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-            Some(s) => s,
-            None => return,
-        };
+        // 获取 ScrolledWindow 和保存滚动位置
+        let sw = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
+        let saved_value = sw.as_ref().map(|s| s.vadjustment().value());
 
-        // 保存滚动位置
-        let adj = sw.vadjustment();
-        let saved_value = adj.value();
+        // 清空列表
+        while let Some(child) = list.first_child() {
+            list.remove(&child);
+        }
 
-        // 暂时禁用垂直滚动条
-        sw.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Never);
+        // 重新添加所有项
+        let shortcuts = state.borrow().config.command_shortcuts.clone();
+        for (i, shortcut) in shortcuts.into_iter().enumerate() {
+            add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i);
+        }
 
-        // 增加 row 的引用计数
-        let row_ref = row.clone();
-
-        // 移除并重新插入
-        list.remove(row);
-        list.insert(&row_ref, index - 1);
-
-        // 恢复滚动位置
-        adj.set_value(saved_value);
-
-        // 恢复滚动条策略
-        sw.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
+        // 延迟恢复滚动位置
+        if let (Some(sw), Some(value)) = (sw, saved_value) {
+            let adj = sw.vadjustment();
+            glib::idle_add_local_once(move || {
+                adj.set_value(value);
+            });
+        }
     }
 }
 
@@ -1841,20 +1857,30 @@ fn show_edit_shortcut_dialog(
                     let _ = state_ref.config.save();
                 }
 
-                // 更新列表
-                let index = list_clone.row_at_index(-1).map_or(0, |_| {
-                    // 计算当前列表中的行数
-                    let mut count = 0;
-                    let mut child = list_clone.first_child();
-                    while let Some(c) = child {
-                        if c.is::<ListBoxRow>() {
-                            count += 1;
+                // 保存滚动位置
+                let saved_value = list_clone.parent()
+                    .and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok())
+                    .map(|sw| sw.vadjustment().value());
+
+                // 重建整个列表
+                while let Some(child) = list_clone.first_child() {
+                    list_clone.remove(&child);
+                }
+
+                let shortcuts = state_clone.borrow().config.command_shortcuts.clone();
+                for (i, shortcut) in shortcuts.into_iter().enumerate() {
+                    add_shortcut_item(&list_clone, &shortcut.name, &shortcut.command, state_clone.clone(), i);
+                }
+
+                // 恢复滚动位置
+                if let Some(value) = saved_value {
+                    let list_clone2 = list_clone.clone();
+                    glib::idle_add_local_once(move || {
+                        if let Some(sw) = list_clone2.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+                            sw.vadjustment().set_value(value);
                         }
-                        child = c.next_sibling();
-                    }
-                    count
-                });
-                add_shortcut_item(&list_clone, &name, &command, state_clone.clone(), index);
+                    });
+                }
             }
         }
         dialog.close();
