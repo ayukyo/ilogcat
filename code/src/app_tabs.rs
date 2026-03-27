@@ -1770,12 +1770,15 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         list.remove(row);
         list.insert(row, index - 1);
 
-        // 立即恢复滚动位置
+        // 选中移动后的行（保持焦点）
+        list.select_row(Some(row));
+
+        // 延迟恢复滚动位置
         if let (Some(sw), Some(pos)) = (scrolled_window, scroll_pos) {
             let adj = sw.vadjustment();
-            // 阻止 GTK 自动调整滚动位置
+            let adj_clone = adj.clone();
             glib::idle_add_local_once(move || {
-                adj.set_value(pos);
+                adj_clone.set_value(pos);
             });
         }
 
