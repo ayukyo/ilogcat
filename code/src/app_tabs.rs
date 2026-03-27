@@ -1734,12 +1734,12 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
             None => return,
         };
 
-        // 保存滚动位置
+        // 保存行相对于视口的位置
         let adj = sw.vadjustment();
-        let saved_value = adj.value();
-
-        // 阻止 ListBox 滚动 - 冻结通知（guard drop 时自动解冻）
-        let _guard = list.freeze_notify();
+        let row_allocation = row.allocation();
+        let row_y = row_allocation.y() as f64;
+        let scroll_value = adj.value();
+        let row_offset_from_viewport = row_y - scroll_value;  // 行顶部到视口顶部的距离
 
         // 增加 row 的引用计数
         let row_ref = row.clone();
@@ -1748,12 +1748,14 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         list.remove(row);
         list.insert(&row_ref, index - 1);
 
-        // guard drop 后自动解冻
-
-        // 延迟恢复滚动位置
+        // 延迟恢复：确保行在相同的视口相对位置
+        let row_for_closure = row_ref.clone();
         let adj_clone = adj.clone();
         glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
-            adj_clone.set_value(saved_value);
+            let new_allocation = row_for_closure.allocation();
+            let new_row_y = new_allocation.y() as f64;
+            // 设置滚动位置使行保持相同的视口相对位置
+            adj_clone.set_value(new_row_y - row_offset_from_viewport);
         });
     }
 }
