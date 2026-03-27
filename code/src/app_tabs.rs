@@ -28,7 +28,7 @@ fn apply_theme(theme: &str) {
         let provider = gtk4::CssProvider::new();
         
         if theme == "dark" {
-            // 暗色主题 CSS - 32种颜色
+            // 暗色主题 CSS
             let css = "
                 window {
                     background-color: #1e1e1e;
@@ -50,38 +50,10 @@ fn apply_theme(theme: &str) {
                     background-color: #2d2d2d;
                     color: #ffffff;
                 }
-                .shortcut-bg-1 { background-color: #1e3a5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #3d5a80; }
-                .shortcut-bg-2 { background-color: #3d1e5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #5a3d80; }
-                .shortcut-bg-3 { background-color: #1e5f3d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #3d805a; }
-                .shortcut-bg-4 { background-color: #5f3d1e; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #805a3d; }
-                .shortcut-bg-5 { background-color: #1e5f5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #3d8080; }
-                .shortcut-bg-6 { background-color: #5f1e3d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #803d5a; }
-                .shortcut-bg-7 { background-color: #3d5f1e; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #5a803d; }
-                .shortcut-bg-8 { background-color: #5f4d1e; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #806a3d; }
-                .shortcut-bg-9 { background-color: #1e4d4d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #3d6a6a; }
-                .shortcut-bg-10 { background-color: #3d3d5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #5a5a80; }
-                .shortcut-bg-11 { background-color: #2d5f2d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #4a804a; }
-                .shortcut-bg-12 { background-color: #5f4d1e; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #806a3d; }
-                .shortcut-bg-13 { background-color: #1e4d5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #3d6a80; }
-                .shortcut-bg-14 { background-color: #5f1e4d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #803d6a; }
-                .shortcut-bg-15 { background-color: #4d5f1e; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #6a803d; }
-                .shortcut-bg-16 { background-color: #5f3d2d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #805a4a; }
-                .shortcut-bg-17 { background-color: #2d5f5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #4a8080; }
-                .shortcut-bg-18 { background-color: #4d3d5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #6a5a80; }
-                .shortcut-bg-19 { background-color: #3d5f2d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #5a804a; }
-                .shortcut-bg-20 { background-color: #5f4d2d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #806a4a; }
-                .shortcut-bg-21 { background-color: #2d4d5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #4a6a80; }
-                .shortcut-bg-22 { background-color: #5f2d4d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #804a6a; }
-                .shortcut-bg-23 { background-color: #4d5f2d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #6a804a; }
-                .shortcut-bg-24 { background-color: #5f4d2d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #806a4a; }
-                .shortcut-bg-25 { background-color: #2d5f4d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #4a806a; }
-                .shortcut-bg-26 { background-color: #4d3d5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #6a5a80; }
-                .shortcut-bg-27 { background-color: #3d5f3d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #5a805a; }
-                .shortcut-bg-28 { background-color: #5f4d1e; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #806a3d; }
-                .shortcut-bg-29 { background-color: #1e5f5f; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #3d8080; }
-                .shortcut-bg-30 { background-color: #5f1e1e; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #803d3d; }
-                .shortcut-bg-31 { background-color: #4d5f2d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #6a804a; }
-                .shortcut-bg-32 { background-color: #5f3d2d; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #805a4a; }
+                paned separator {
+                    min-width: 2px;
+                    background-color: transparent;
+                }
             ";
             provider.load_from_data(css);
         } else {
@@ -107,38 +79,42 @@ fn apply_theme(theme: &str) {
                     background-color: #ffffff;
                     color: #000000;
                 }
-                .shortcut-bg-1 { background-color: #e3f2fd; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #90caf9; }
-                .shortcut-bg-2 { background-color: #f3e5f5; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ce93d8; }
-                .shortcut-bg-3 { background-color: #e8f5e9; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #a5d6a7; }
-                .shortcut-bg-4 { background-color: #fff3e0; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ffcc80; }
-                .shortcut-bg-5 { background-color: #e0f7fa; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #80deea; }
-                .shortcut-bg-6 { background-color: #fce4ec; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #f48fb1; }
-                .shortcut-bg-7 { background-color: #f1f8e9; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #c5e1a5; }
-                .shortcut-bg-8 { background-color: #fff8e1; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ffe082; }
-                .shortcut-bg-9 { background-color: #e0f2f1; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #80cbc4; }
-                .shortcut-bg-10 { background-color: #ede7f6; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #b39ddb; }
-                .shortcut-bg-11 { background-color: #c8e6c9; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #81c784; }
-                .shortcut-bg-12 { background-color: #ffe0b2; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ffb74d; }
-                .shortcut-bg-13 { background-color: #b2ebf2; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #4dd0e1; }
-                .shortcut-bg-14 { background-color: #f8bbd9; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #f06292; }
-                .shortcut-bg-15 { background-color: #dcedc8; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #aed581; }
-                .shortcut-bg-16 { background-color: #ffccbc; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ff8a65; }
-                .shortcut-bg-17 { background-color: #b2dfdb; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #4db6ac; }
-                .shortcut-bg-18 { background-color: #d1c4e9; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #9575cd; }
-                .shortcut-bg-19 { background-color: #a5d6a7; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #66bb6a; }
-                .shortcut-bg-20 { background-color: #ffcc80; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ffa726; }
-                .shortcut-bg-21 { background-color: #80deea; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #26c6da; }
-                .shortcut-bg-22 { background-color: #f48fb1; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ec407a; }
-                .shortcut-bg-23 { background-color: #c5e1a5; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #9ccc65; }
-                .shortcut-bg-24 { background-color: #ffab91; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ff7043; }
-                .shortcut-bg-25 { background-color: #80cbc4; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #26a69a; }
-                .shortcut-bg-26 { background-color: #b39ddb; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #7e57c2; }
-                .shortcut-bg-27 { background-color: #81c784; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #4caf50; }
-                .shortcut-bg-28 { background-color: #ffa726; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ff9800; }
-                .shortcut-bg-29 { background-color: #4dd0e1; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #00bcd4; }
-                .shortcut-bg-30 { background-color: #ef9a9a; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ef5350; }
-                .shortcut-bg-31 { background-color: #aed581; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #8bc34a; }
-                .shortcut-bg-32 { background-color: #ff8a65; border-radius: 4px; padding: 4px; margin: 2px; border: 1px solid #ff5722; }
+                paned separator {
+                    min-width: 2px;
+                    background-color: transparent;
+                }
+                .shortcut-bg-1 { background-color: #e3f2fd; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-2 { background-color: #f3e5f5; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-3 { background-color: #e8f5e9; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-4 { background-color: #fff3e0; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-5 { background-color: #e0f7fa; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-6 { background-color: #fce4ec; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-7 { background-color: #f1f8e9; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-8 { background-color: #fff8e1; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-9 { background-color: #e0f2f1; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-10 { background-color: #ede7f6; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-11 { background-color: #e1f5fe; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-12 { background-color: #fff9c4; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-13 { background-color: #e0f7fa; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-14 { background-color: #f3e5f5; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-15 { background-color: #e8f5e9; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-16 { background-color: #fff3e0; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-17 { background-color: #e3f2fd; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-18 { background-color: #fce4ec; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-19 { background-color: #f1f8e9; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-20 { background-color: #fff8e1; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-21 { background-color: #e0f2f1; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-22 { background-color: #ede7f6; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-23 { background-color: #e1f5fe; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-24 { background-color: #fff9c4; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-25 { background-color: #e0f7fa; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-26 { background-color: #f3e5f5; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-27 { background-color: #e8f5e9; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-28 { background-color: #fff3e0; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-29 { background-color: #e3f2fd; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-30 { background-color: #fce4ec; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-31 { background-color: #f1f8e9; border-radius: 4px; padding: 4px; margin: 2px; }
+                .shortcut-bg-32 { background-color: #fff8e1; border-radius: 4px; padding: 4px; margin: 2px; }
             ";
             provider.load_from_data(css);
         }
@@ -1624,16 +1600,16 @@ fn add_shortcut_item(
     state: Rc<RefCell<AppState>>,
     color_index: usize,
 ) {
-    // 根据索引选择背景色（32种颜色交替显示）
+    // 根据索引选择背景色（32种浅色交替显示）
     let bg_colors = [
-        "#e3f2fd", "#ffe0b2", "#f3e5f5", "#b2ebf2",
-        "#e8f5e9", "#fce4ec", "#fff3e0", "#d1c4e9",
-        "#e0f7fa", "#ffccbc", "#ede7f6", "#c5e1a5",
-        "#c8e6c9", "#f48fb1", "#b2dfdb", "#ffcc80",
-        "#f1f8e9", "#ef9a9a", "#fff8e1", "#80cbc4",
-        "#e0f2f1", "#ffab91", "#a5d6a7", "#b39ddb",
-        "#80deea", "#ffa726", "#dcedc8", "#4dd0e1",
-        "#81c784", "#ff8a65", "#aed581", "#f8bbd9",
+        "#e3f2fd", "#fff3e0", "#f3e5f5", "#e0f7fa",
+        "#e8f5e9", "#fce4ec", "#fff8e1", "#ede7f6",
+        "#e0f2f1", "#fff9c4", "#e1f5fe", "#f1f8e9",
+        "#e3f2fd", "#fff3e0", "#f3e5f5", "#e0f7fa",
+        "#e8f5e9", "#fce4ec", "#fff8e1", "#ede7f6",
+        "#e0f2f1", "#fff9c4", "#e1f5fe", "#f1f8e9",
+        "#e3f2fd", "#fff3e0", "#f3e5f5", "#e0f7fa",
+        "#e8f5e9", "#fce4ec", "#fff8e1", "#ede7f6",
     ];
     let bg_color = bg_colors[color_index % bg_colors.len()];
 
