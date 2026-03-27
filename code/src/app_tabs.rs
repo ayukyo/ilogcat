@@ -1719,10 +1719,8 @@ fn add_shortcut_item(
 /// 上移行 - 直接操作 ListBox 行顺序
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
-    eprintln!("DEBUG move_row_up: index={}", index);
 
     if index <= 0 {
-        eprintln!("DEBUG: index <= 0, skipping");
         return;
     }
 
@@ -1731,43 +1729,46 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         let mut state_ref = state.borrow_mut();
         let shortcuts = &mut state_ref.config.command_shortcuts;
         let idx = index as usize;
-        eprintln!("DEBUG: shortcuts.len()={}, idx={}", shortcuts.len(), idx);
         if shortcuts.len() > idx {
             shortcuts.swap(idx, idx - 1);
             let _ = state_ref.config.save();
-            eprintln!("DEBUG: swapped {} and {}", idx, idx - 1);
         }
     }
 
-    // 获取 ScrolledWindow - 使用 ancestor 方法
-    let sw = list.ancestor(gtk4::ScrolledWindow::static_type())
-        .and_then(|w| w.downcast::<gtk4::ScrolledWindow>().ok());
+    // 获取 ScrolledWindow
+    let sw = match list.ancestor(gtk4::ScrolledWindow::static_type())
+        .and_then(|w| w.downcast::<gtk4::ScrolledWindow>().ok()) {
+        Some(s) => s,
+        None => return,
+    };
 
-    let saved_value = sw.as_ref().map(|s| s.vadjustment().value());
-    eprintln!("DEBUG: ScrolledWindow found: {}, saved_value: {:?}", sw.is_some(), saved_value);
+    // 保存行在视口中的相对位置
+    let adj = sw.vadjustment();
+    let scroll_value = adj.value();
+    let row_allocation = row.allocation();
+    let row_y = row_allocation.y() as f64;
+    let row_height = row_allocation.height() as f64;
+    // 行顶部到视口顶部的距离
+    let row_offset_from_viewport_top = row_y - scroll_value;
 
     // 增加 row 的引用计数
     let row_ref = row.clone();
 
     // 移除并重新插入
-    eprintln!("DEBUG: removing and inserting row");
     list.remove(row);
     list.insert(&row_ref, index - 1);
-    eprintln!("DEBUG: done");
 
-    // 恢复滚动位置
-    if let (Some(sw), Some(value)) = (sw, saved_value) {
-        let adj = sw.vadjustment();
-        adj.set_value(value);
-        let adj_clone = adj.clone();
-        glib::idle_add_local_once(move || {
-            adj_clone.set_value(value);
-        });
-        let adj_clone2 = adj.clone();
-        glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
-            adj_clone2.set_value(value);
-        });
-    }
+    // 延迟恢复滚动位置，使行保持相同的视口相对位置
+    let row_for_closure = row_ref.clone();
+    let adj_clone = adj.clone();
+    glib::idle_add_local_once(move || {
+        // 获取移动后行的新位置
+        let new_allocation = row_for_closure.allocation();
+        let new_row_y = new_allocation.y() as f64;
+        // 设置滚动位置使行保持在相同的视口相对位置
+        let new_scroll = new_row_y - row_offset_from_viewport_top;
+        adj_clone.set_value(new_scroll.max(0.0));
+    });
 }
 
 /// 执行快捷方式命令
