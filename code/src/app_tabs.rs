@@ -1767,18 +1767,24 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         // 保存滚动位置
         let scroll_pos = scrolled_window.as_ref().map(|sw| sw.vadjustment().value());
 
-        // 暂时断开 ListBox 与 ScrolledWindow 的关联，防止自动滚动
+        // 暂时将 ListBox 从 ScrolledWindow 移除，阻止 GTK 自动滚动
+        if let Some(ref sw) = scrolled_window {
+            sw.set_child(None::<&gtk4::Widget>);
+        }
+
         // 执行移动
         list.remove(row);
         list.insert(row, index - 1);
 
-        // 使用 timeout 延迟恢复滚动位置（等待 GTK 完成自动滚动）
+        // 恢复 ListBox 到 ScrolledWindow
+        if let Some(ref sw) = scrolled_window {
+            sw.set_child(Some(list));
+        }
+
+        // 恢复滚动位置
         if let (Some(sw), Some(pos)) = (scrolled_window, scroll_pos) {
             let adj = sw.vadjustment();
-            glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
-                adj.set_value(pos);
-                glib::ControlFlow::Break
-            });
+            adj.set_value(pos);
         }
 
         save_shortcuts_order(list, state);
