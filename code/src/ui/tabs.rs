@@ -61,6 +61,10 @@ impl LogTab {
             .editable(false)
             .monospace(true)
             .wrap_mode(gtk4::WrapMode::WordChar)
+            .top_margin(8)
+            .bottom_margin(8)
+            .left_margin(8)
+            .right_margin(8)
             .build();
 
         let text_buffer = text_view.buffer();
