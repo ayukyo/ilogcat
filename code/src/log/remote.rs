@@ -277,6 +277,9 @@ impl LogSource for SshSource {
             }
 
             let _ = channel.wait_close();
+
+            // 线程结束时标记为不在运行，以便检测连接断开
+            running_clone.store(false, Ordering::SeqCst);
         });
 
         self.session = Some(session);
@@ -431,6 +434,9 @@ impl LogSource for SshFileWatchSource {
             }
 
             let _ = channel.wait_close();
+
+            // 线程结束时标记为不在运行，以便检测连接断开
+            running.store(false, Ordering::SeqCst);
 
             // 清理 session
             if let Ok(mut session) = session_arc.lock() {
