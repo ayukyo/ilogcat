@@ -64,8 +64,8 @@ impl LogTab {
             .wrap_mode(gtk4::WrapMode::WordChar)
             .top_margin(8)
             .bottom_margin(8)
-            .left_margin(8)
-            .right_margin(8)
+            .left_margin(12)
+            .right_margin(12)
             .pixels_above_lines(2)
             .pixels_below_lines(2)
             .build();
@@ -745,6 +745,12 @@ impl TabManager {
         cmd_box.append(&history_btn);
 
         main_box.append(&cmd_box);
+
+        // 添加分隔线
+        let separator = gtk4::Separator::builder()
+            .orientation(Orientation::Horizontal)
+            .build();
+        main_box.append(&separator);
 
         // 创建日志输出区域
         let scrolled = ScrolledWindow::builder()

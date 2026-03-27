@@ -1785,11 +1785,14 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
             add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i);
         }
 
-        // 恢复滚动位置
+        // 延迟恢复滚动位置（等待 GTK 完成布局）
         if let Some(pos) = scroll_pos {
-            if let Some(sw) = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-                sw.vadjustment().set_value(pos);
-            }
+            let list_clone = list.clone();
+            glib::idle_add_local_once(move || {
+                if let Some(sw) = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+                    sw.vadjustment().set_value(pos);
+                }
+            });
         }
     }
 }
