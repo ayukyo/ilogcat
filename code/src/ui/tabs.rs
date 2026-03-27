@@ -372,9 +372,16 @@ impl LogTab {
         if self.user_scrolled_up.load(Ordering::SeqCst) {
             return;
         }
-        
-        let mut end_iter = self.text_buffer.end_iter();
-        self.text_view.scroll_to_iter(&mut end_iter, 0.0, false, 0.0, 0.0);
+
+        // 使用 glib::idle_add 确保在 UI 更新后执行滚动
+        let text_view = self.text_view.clone();
+        glib::idle_add_local_once(move || {
+            if let Some(vadj) = text_view.vadjustment() {
+                let upper = vadj.upper();
+                let page_size = vadj.page_size();
+                vadj.set_value(upper - page_size);
+            }
+        });
     }
     
     /// 设置智能滚动事件监听
