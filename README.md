@@ -48,9 +48,20 @@ Download the latest release from [GitHub Releases](https://github.com/ayukyo/ilo
 
 ```bash
 # Download latest version
-wget https://github.com/ayukyo/ilogcat/releases/latest/download/ilogcat_0.2.0_amd64.deb
-sudo dpkg -i ilogcat_0.2.0_amd64.deb
+wget https://github.com/ayukyo/ilogcat/releases/latest/download/ilogcat_0.5.0_amd64.deb
+sudo dpkg -i ilogcat_0.5.0_amd64.deb
 sudo apt-get install -f  # Install dependencies if needed
+```
+
+### Using Docker
+
+```bash
+# Pull from GitHub Packages
+docker pull ghcr.io/ayukyo/ilogcat:latest
+
+# Run (requires X11 forwarding)
+xhost +local:docker
+docker run -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix ghcr.io/ayukyo/ilogcat
 ```
 
 ### From Source
@@ -170,6 +181,18 @@ ilogcat/
 
 ## Changelog
 
+### v0.5.0 (2026-03-27)
+
+- **Command Shortcuts Sidebar** - Save and manage frequently used commands
+- **Edit Mode Toggle** - Show/hide edit buttons with toggle button
+- **Multi-line Command Input** - 4-line text input for commands
+- **Docker Support** - Now available as Docker image on ghcr.io
+- Fixed shortcut move up scrolling issue
+- Fixed SSH cd command with relative paths
+- Fixed SSH disconnection status display
+- Fixed empty command execution error
+- Various UI improvements
+
 ### v0.4.0 (2026-03-26)
 
 - **TAB Completion** - SSH command auto-completion like SecureCRT
@@ -282,9 +305,20 @@ sudo pacman -S gtk4 libssh2
 
 ```bash
 # 下载最新版本
-wget https://github.com/ayukyo/ilogcat/releases/latest/download/ilogcat_0.2.0_amd64.deb
-sudo dpkg -i ilogcat_0.2.0_amd64.deb
+wget https://github.com/ayukyo/ilogcat/releases/latest/download/ilogcat_0.5.0_amd64.deb
+sudo dpkg -i ilogcat_0.5.0_amd64.deb
 sudo apt-get install -f  # 安装依赖（如需要）
+```
+
+### 使用 Docker
+
+```bash
+# 从 GitHub Packages 拉取
+docker pull ghcr.io/ayukyo/ilogcat:latest
+
+# 运行（需要 X11 转发）
+xhost +local:docker
+docker run -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix ghcr.io/ayukyo/ilogcat
 ```
 
 ### 从源码编译
@@ -404,6 +438,18 @@ ilogcat/
 ```
 
 ## 更新日志
+
+### v0.5.0 (2026-03-27)
+
+- **命令快捷方式侧边栏** - 保存和管理常用命令
+- **编辑模式切换** - 通过切换按钮显示/隐藏编辑按钮
+- **多行命令输入** - 4 行文本输入框
+- **Docker 支持** - 现在可在 ghcr.io 获取 Docker 镜像
+- 修复快捷方式上移滚动问题
+- 修复 SSH cd 命令相对路径问题
+- 修复 SSH 断连状态显示
+- 修复空命令执行错误
+- 多项 UI 改进
 
 ### v0.4.0 (2026-03-26)
 
