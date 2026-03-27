@@ -1760,8 +1760,22 @@ fn add_shortcut_item(
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
     if index > 0 {
+        // 保存滚动位置
+        let scroll_pos = list.parent()
+            .and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok())
+            .map(|sw| sw.vadjustment().value());
+
         list.remove(row);
         list.insert(row, index - 1);
+
+        // 恢复滚动位置
+        if let Some(pos) = scroll_pos {
+            if let Some(sw) = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+                let adj = sw.vadjustment();
+                adj.set_value(pos);
+            }
+        }
+
         save_shortcuts_order(list, state);
     }
 }
