@@ -1568,18 +1568,12 @@ fn add_shortcut_item(
     state: Rc<RefCell<AppState>>,
     color_index: usize,
 ) {
-    // 基于名称 hash 生成颜色，确保同一快捷方式颜色一致
-    // 使用 HSL 颜色模型：色相基于 hash，饱和度 40%，亮度 90%（浅色）
-    let hash = {
-        let mut h = 0usize;
-        for c in name.chars() {
-            h = h.wrapping_mul(31).wrapping_add(c as usize);
-        }
-        h
-    };
-    let hue = (hash % 360) as i32;  // 色相 0-360
-    let saturation = 40;  // 饱和度 40%
-    let lightness = 90;   // 亮度 90%（浅色）
+    // 使用黄金分割法分配色相，确保相邻项颜色差异大
+    // 黄金角度约 137.5 度，这样每个相邻项色相差 137.5 度，视觉上差异最大
+    let golden_angle = 137.508;
+    let hue = ((color_index as f64) * golden_angle % 360.0) as i32;
+    let saturation = 45;  // 饱和度 45%
+    let lightness = 88;   // 亮度 88%（浅色）
 
     // 生成 CSS 背景色（使用 HSL）
     let bg_css = format!(
@@ -1715,29 +1709,31 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
             }
         }
 
-        // 保存滚动位置
-        let sw = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
-        let saved_scroll = sw.as_ref().map(|s| s.vadjustment().value());
+        // 获取 ScrolledWindow
+        let sw = match list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+            Some(s) => s,
+            None => return,
+        };
 
-        // 增加 row 的引用计数，防止 remove 后被释放
+        // 保存滚动位置
+        let adj = sw.vadjustment();
+        let saved_value = adj.value();
+
+        // 暂时禁用垂直滚动条
+        sw.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Never);
+
+        // 增加 row 的引用计数
         let row_ref = row.clone();
 
-        // 先移除行
+        // 移除并重新插入
         list.remove(row);
-
-        // 在新位置插入（index - 1）
         list.insert(&row_ref, index - 1);
 
-        // 延迟恢复滚动位置（需要等待 GTK 完成所有布局更新）
-        if let Some(sw) = sw {
-            if let Some(value) = saved_scroll {
-                let adj = sw.vadjustment();
-                // 使用 timeout 确保在 GTK 所有事件处理完后恢复
-                glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
-                    adj.set_value(value);
-                });
-            }
-        }
+        // 恢复滚动位置
+        adj.set_value(saved_value);
+
+        // 恢复滚动条策略
+        sw.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
     }
 }
 
