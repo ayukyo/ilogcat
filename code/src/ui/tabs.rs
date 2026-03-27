@@ -61,11 +61,17 @@ impl LogTab {
             .editable(false)
             .monospace(true)
             .wrap_mode(gtk4::WrapMode::WordChar)
-            .top_margin(8)
-            .bottom_margin(8)
-            .left_margin(8)
-            .right_margin(8)
             .build();
+
+        // 使用 CSS 设置内边距，em 单位会自动适应字体大小和屏幕 DPI
+        let css_provider = gtk4::CssProvider::new();
+        css_provider.load_from_data(
+            "textview { padding: 0.8em; }"
+        );
+        text_view.style_context().add_provider(
+            &css_provider,
+            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION
+        );
 
         let text_buffer = text_view.buffer();
         Self::setup_log_tags(&text_buffer);
