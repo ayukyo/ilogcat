@@ -330,31 +330,23 @@ impl LogTab {
 
         // 高亮过滤关键字
         if !self.filter.keywords.is_empty() {
-            // 获取行文本用于查找关键字位置
-            let line_text = &line;
+            // 使用原始日志行（不含换行符）进行匹配
+            let line_text = &entry.raw_line;
             for kw in &self.filter.keywords {
-                // 获取关键字文本（大小写不敏感搜索）
-                let kw_text = &kw.text;
-                let lower_line = line_text.to_lowercase();
-                let lower_kw = kw_text.to_lowercase();
+                // 使用 find_matches 获取所有匹配位置（支持正则表达式）
+                let matches = kw.find_matches(line_text);
+                for (start, end) in matches {
+                    let char_offset_start = line_text[..start].chars().count() as i32;
+                    let char_offset_end = line_text[..end].chars().count() as i32;
 
-                // 查找所有匹配位置
-                let mut search_start = 0;
-                while let Some(pos) = lower_line[search_start..].find(&lower_kw) {
-                    let abs_pos = search_start + pos;
-                    let char_offset = line_text[..abs_pos].chars().count() as i32;
-                    let kw_len = kw_text.chars().count() as i32;
-
-                    let highlight_start = line_start + char_offset;
-                    let highlight_end = line_start + char_offset + kw_len;
+                    let highlight_start = line_start + char_offset_start;
+                    let highlight_end = line_start + char_offset_end;
 
                     if highlight_end <= line_end {
                         let start_iter = self.text_buffer.iter_at_offset(highlight_start);
                         let end_iter = self.text_buffer.iter_at_offset(highlight_end);
                         self.text_buffer.apply_tag_by_name("highlight", &start_iter, &end_iter);
                     }
-
-                    search_start = abs_pos + kw_text.len();
                 }
             }
         }

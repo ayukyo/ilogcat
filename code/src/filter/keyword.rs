@@ -54,6 +54,12 @@ impl KeywordFilter {
         }
     }
 
+    /// 测试用：获取编译的正则表达式字符串
+    #[cfg(test)]
+    fn get_regex_pattern(&self) -> Option<String> {
+        self.regex.as_ref().map(|r| r.to_string())
+    }
+
     /// 获取匹配的所有位置（用于高亮）
     pub fn find_matches<'a>(&self, text: &'a str) -> Vec<(usize, usize)> {
         if let Some(ref regex) = self.regex {
@@ -76,5 +82,39 @@ impl KeywordFilter {
             }
             matches
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_regex_with_pipe_spaces() {
+        // 测试 "socProtocol | battery" 的处理
+        let filter = KeywordFilter::with_regex(
+            "socProtocol | battery".to_string(),
+            false, // case_sensitive
+            false, // whole_word
+            true,  // is_regex
+        );
+
+        // 验证正则表达式能匹配
+        assert!(filter.matches("socProtocol test"), "Should match socProtocol");
+        assert!(filter.matches("battery level"), "Should match battery");
+        assert!(filter.matches("SOCPROTOCOL"), "Should match SOCPROTOCOL (case insensitive)");
+        assert!(filter.matches("BATTERY"), "Should match BATTERY (case insensitive)");
+        assert!(!filter.matches("other text"), "Should not match other text");
+    }
+
+    #[test]
+    fn test_regex_pipe_cleaning() {
+        let input = "errorCode | Early";
+        let cleaned = input.replace(" | ", "|").replace(" |", "|").replace("| ", "|");
+        assert_eq!(cleaned, "errorCode|Early");
+
+        let input2 = "a | b | c";
+        let cleaned2 = input2.replace(" | ", "|").replace(" |", "|").replace("| ", "|");
+        assert_eq!(cleaned2, "a|b|c");
     }
 }
