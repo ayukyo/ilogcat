@@ -801,6 +801,11 @@ impl TabManager {
                     .filter(|line| !line.is_empty())
                     .collect();
 
+                // 空命令不执行
+                if commands.is_empty() {
+                    return;
+                }
+
                 // 检查是否已连接SSH
                 let ssh_config = tab_clone.borrow().ssh_config.clone();
                 let is_ssh = ssh_config.is_some();
