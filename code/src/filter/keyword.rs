@@ -18,11 +18,13 @@ impl KeywordFilter {
     /// 创建支持正则表达式的过滤器
     pub fn with_regex(text: String, case_sensitive: bool, whole_word: bool, is_regex: bool) -> Self {
         let regex = if is_regex {
-            // 正则表达式模式：直接使用用户输入
+            // 正则表达式模式：自动去除 | 两边的空格
+            // 例如 "errorCode | Early" -> "errorCode|Early"
+            let cleaned_text = text.replace(" | ", "|").replace(" |", "|").replace("| ", "|");
             if case_sensitive {
-                Regex::new(&text).ok()
+                Regex::new(&cleaned_text).ok()
             } else {
-                Regex::new(&format!("(?i){}", text)).ok()
+                Regex::new(&format!("(?i){}", cleaned_text)).ok()
             }
         } else if whole_word {
             let pattern = format!(r"\b{}\b", regex::escape(&text));
