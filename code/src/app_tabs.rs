@@ -1184,16 +1184,10 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow, side
         about_box.set_margin_top(12);
 
         let version_label = Label::builder()
-            .label("iLogCat v0.4.0")
+            .label("iLogCat v0.5.0")
             .css_classes(vec!["title-4".to_string()])
             .build();
         about_box.append(&version_label);
-
-        let author_label = Label::builder()
-            .label("Author: ayukyo")
-            .css_classes(vec!["dim-label".to_string()])
-            .build();
-        about_box.append(&author_label);
 
         let repo_label = Label::builder()
             .label("https://github.com/ayukyo/ilogcat")

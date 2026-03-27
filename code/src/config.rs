@@ -414,24 +414,42 @@ impl Config {
                 self.ssh_servers.push(server);
             }
         }
-        
+
         // 合并保存的过滤器（避免重复）
         for filter in other.saved_filters {
             if !self.saved_filters.iter().any(|f| f.name == filter.name) {
                 self.saved_filters.push(filter);
             }
         }
-        
+
+        // 合并命令快捷方式（避免重复）
+        for shortcut in other.command_shortcuts {
+            if !self.command_shortcuts.iter().any(|s| s.name == shortcut.name) {
+                self.command_shortcuts.push(shortcut);
+            }
+        }
+
+        // 合并命令历史
+        for cmd in other.command_history {
+            if !self.command_history.contains(&cmd) {
+                self.command_history.push(cmd);
+            }
+        }
+        // 限制历史记录数量
+        if self.command_history.len() > 10 {
+            self.command_history.truncate(10);
+        }
+
         // 使用导入的自定义关键字（如果非默认）
         if other.custom_level_keywords != CustomLevelKeywords::default() {
             self.custom_level_keywords = other.custom_level_keywords;
         }
-        
+
         // 使用导入的颜色配置（如果非默认）
         if other.colors != ColorConfig::default() {
             self.colors = other.colors;
         }
-        
+
         // 使用导入的 UI 配置（如果非默认）
         if other.ui != UiConfig::default() {
             self.ui = other.ui;

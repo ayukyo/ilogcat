@@ -456,27 +456,28 @@ where
         Some(parent),
         FileChooserAction::Save,
         &[
-            ("Cancel", ResponseType::Cancel),
+            (&t(I18nKey::ButtonCancel), ResponseType::Cancel),
             ("Export", ResponseType::Accept),
         ],
     );
-    
+
+    dialog.set_modal(true);
     // 设置默认文件名
     dialog.set_current_name("ilogcat-settings.toml");
-    
+
     // 添加文件过滤器
     let filter = gtk4::FileFilter::new();
     filter.set_name(Some("TOML files"));
     filter.add_pattern("*.toml");
     dialog.add_filter(&filter);
-    
+
     let filter_all = gtk4::FileFilter::new();
     filter_all.set_name(Some("All files"));
     filter_all.add_pattern("*");
     dialog.add_filter(&filter_all);
 
     dialog.connect_response(move |dialog, response| {
-        if response == ResponseType::Accept {
+        if response == ResponseType::Accept || response == ResponseType::Ok {
             if let Some(file) = dialog.file() {
                 if let Some(path) = file.path() {
                     // 确保文件扩展名是 .toml
@@ -489,7 +490,7 @@ where
                 }
             }
         }
-        dialog.close();
+        dialog.destroy();
     });
 
     dialog.present();
@@ -510,6 +511,8 @@ where
         ],
     );
 
+    dialog.set_modal(true);
+
     // 添加文件过滤器
     let filter = gtk4::FileFilter::new();
     filter.set_name(Some("TOML files"));
@@ -522,14 +525,14 @@ where
     dialog.add_filter(&filter_all);
 
     dialog.connect_response(move |dialog, response| {
-        if response == ResponseType::Accept {
+        if response == ResponseType::Accept || response == ResponseType::Ok {
             if let Some(file) = dialog.file() {
                 if let Some(path) = file.path() {
                     on_import(path);
                 }
             }
         }
-        dialog.close();
+        dialog.destroy();
     });
 
     dialog.present();
