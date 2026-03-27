@@ -1762,23 +1762,23 @@ fn add_shortcut_item(
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
     if index > 0 {
-        // 获取滚动窗口和滚动位置
+        // 获取滚动窗口
         let scrolled_window = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
+
+        // 保存滚动位置
         let scroll_pos = scrolled_window.as_ref().map(|sw| sw.vadjustment().value());
 
+        // 暂时断开 ListBox 与 ScrolledWindow 的关联，防止自动滚动
         // 执行移动
         list.remove(row);
         list.insert(row, index - 1);
 
-        // 选中移动后的行（保持焦点）
-        list.select_row(Some(row));
-
-        // 延迟恢复滚动位置
+        // 使用 timeout 延迟恢复滚动位置（等待 GTK 完成自动滚动）
         if let (Some(sw), Some(pos)) = (scrolled_window, scroll_pos) {
             let adj = sw.vadjustment();
-            let adj_clone = adj.clone();
-            glib::idle_add_local_once(move || {
-                adj_clone.set_value(pos);
+            glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+                adj.set_value(pos);
+                glib::ControlFlow::Break
             });
         }
 

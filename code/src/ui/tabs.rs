@@ -741,10 +741,10 @@ impl TabManager {
         // 创建一个带边距的容器包裹 TextView
         let margin_box = gtk4::Box::builder()
             .orientation(Orientation::Vertical)
-            .margin_top(12)
-            .margin_bottom(12)
-            .margin_start(12)
-            .margin_end(12)
+            .margin_top(4)
+            .margin_bottom(4)
+            .margin_start(4)
+            .margin_end(4)
             .build();
 
         let text_view = tab.borrow().text_view.clone();
