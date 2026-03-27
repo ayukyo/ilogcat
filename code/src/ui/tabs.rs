@@ -61,10 +61,10 @@ impl LogTab {
             .editable(false)
             .monospace(true)
             .wrap_mode(gtk4::WrapMode::WordChar)
-            .top_margin(16)
-            .bottom_margin(16)
-            .left_margin(16)
-            .right_margin(16)
+            .top_margin(4)
+            .bottom_margin(4)
+            .left_margin(4)
+            .right_margin(4)
             .pixels_above_lines(2)
             .pixels_below_lines(2)
             .build();
@@ -738,18 +738,8 @@ impl TabManager {
             .vexpand(true)
             .build();
 
-        // 创建一个带边距的容器包裹 TextView
-        let margin_box = gtk4::Box::builder()
-            .orientation(Orientation::Vertical)
-            .margin_top(4)
-            .margin_bottom(4)
-            .margin_start(4)
-            .margin_end(4)
-            .build();
-
         let text_view = tab.borrow().text_view.clone();
-        margin_box.append(&text_view);
-        scrolled.set_child(Some(&margin_box));
+        scrolled.set_child(Some(&text_view));
 
         main_box.append(&scrolled);
 

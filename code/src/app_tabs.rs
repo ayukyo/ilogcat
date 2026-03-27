@@ -662,8 +662,7 @@ fn refresh_tab_titles(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
 
                     match source.start() {
                         Ok(_) => {
-                            // 连接成功
-                            source.stop().ok();
+                            // 连接成功，不要停止 source
                             tab_clone.borrow().finish_reconnect(true);
                             tab_clone.borrow_mut().set_source(std::boxed::Box::new(source));
 
