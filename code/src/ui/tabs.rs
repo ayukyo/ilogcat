@@ -835,28 +835,23 @@ impl TabManager {
                         // 检查命令是否以cd开头
                         let starts_with_cd = cmd_trimmed.starts_with("cd ") || cmd_trimmed.starts_with("cd\t");
 
-                        // 构建实际命令：如果命令不以cd开头，先cd到当前目录
-                        let actual_cmd = if starts_with_cd {
-                            // 命令本身包含cd，直接执行
-                            cmd_trimmed.to_string()
-                        } else {
-                            match &current_path {
-                                Some(path) if path != "~" && !path.is_empty() => {
-                                    format!("cd {} && {}", path, cmd_trimmed)
-                                }
-                                _ => cmd_trimmed.to_string()
+                        // 构建实际命令：总是先 cd 到当前目录
+                        let actual_cmd = match &current_path {
+                            Some(path) if path != "~" && !path.is_empty() => {
+                                format!("cd {} && {}", path, cmd_trimmed)
                             }
+                            _ => cmd_trimmed.to_string()
                         };
 
-                        // 如果命令以cd开头，尝试提取新路径
-                        let new_path = if starts_with_cd {
-                            // 提取cd目标目录
-                            cmd_trimmed.lines().next().and_then(|first_line| {
-                                first_line.strip_prefix("cd ").map(|s| s.trim().to_string())
-                            })
+                        // 如果命令以cd开头，在命令后添加 pwd 来获取新路径
+                        let actual_cmd = if starts_with_cd {
+                            format!("{} ; pwd", actual_cmd)
                         } else {
-                            None
+                            actual_cmd
                         };
+
+                        // cd 命令后需要更新路径
+                        let should_update_path = starts_with_cd;
 
                         let mut source = crate::log::SshSource::new(ssh_cfg.clone(), actual_cmd.clone());
                         tab_clone.borrow_mut().set_source_info(SourceType::SshCommand(host, combined_cmd));
@@ -867,9 +862,9 @@ impl TabManager {
                         } else {
                             tab_clone.borrow_mut().set_source(std::boxed::Box::new(source));
 
-                            // 更新当前目录
-                            if let Some(new_path) = new_path {
-                                tab_clone.borrow_mut().set_current_path(new_path);
+                            // cd 命令后需要从输出中提取新路径（pwd 的输出）
+                            if should_update_path {
+                                tab_clone.borrow_mut().pending_cd = true;
                             }
                         }
                     }
