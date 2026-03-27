@@ -1713,7 +1713,7 @@ fn add_shortcut_item(
     list.append(&row);
 }
 
-/// 上移行 - 通过重建列表实现
+/// 上移行 - 直接操作 ListBox 行顺序
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
     if index > 0 {
@@ -1728,28 +1728,33 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
             }
         }
 
-        // 获取 ScrolledWindow 和保存滚动位置
-        let sw = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
-        let saved_value = sw.as_ref().map(|s| s.vadjustment().value());
+        // 获取 ScrolledWindow
+        let sw = match list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+            Some(s) => s,
+            None => return,
+        };
 
-        // 清空列表
-        while let Some(child) = list.first_child() {
-            list.remove(&child);
-        }
+        // 保存滚动位置
+        let adj = sw.vadjustment();
+        let saved_value = adj.value();
 
-        // 重新添加所有项
-        let shortcuts = state.borrow().config.command_shortcuts.clone();
-        for (i, shortcut) in shortcuts.into_iter().enumerate() {
-            add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i);
-        }
+        // 阻止 ListBox 滚动 - 冻结通知（guard drop 时自动解冻）
+        let _guard = list.freeze_notify();
 
-        // 使用更长延迟恢复滚动位置
-        if let (Some(sw), Some(value)) = (sw, saved_value) {
-            let adj = sw.vadjustment();
-            glib::timeout_add_local_once(std::time::Duration::from_millis(200), move || {
-                adj.set_value(value);
-            });
-        }
+        // 增加 row 的引用计数
+        let row_ref = row.clone();
+
+        // 移除并重新插入
+        list.remove(row);
+        list.insert(&row_ref, index - 1);
+
+        // guard drop 后自动解冻
+
+        // 延迟恢复滚动位置
+        let adj_clone = adj.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
+            adj_clone.set_value(saved_value);
+        });
     }
 }
 
