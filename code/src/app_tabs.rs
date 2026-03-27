@@ -1719,12 +1719,14 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         return;
     }
 
-    // 获取 ScrolledWindow 和滚动位置
+    // 获取 ScrolledWindow 和父容器
     let sw = match list.ancestor(gtk4::ScrolledWindow::static_type())
         .and_then(|w| w.downcast::<gtk4::ScrolledWindow>().ok()) {
         Some(s) => s,
         None => return,
     };
+
+    // 保存滚动位置
     let adj = sw.vadjustment();
     let saved_scroll = adj.value();
 
@@ -1739,6 +1741,9 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         }
     }
 
+    // 暂时从 ScrolledWindow 移除 ListBox
+    sw.set_child(None::<&gtk4::Widget>);
+
     // 清空并重建列表
     while let Some(child) = list.first_child() {
         list.remove(&child);
@@ -1749,11 +1754,11 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
         add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i);
     }
 
-    // 延迟恢复滚动位置
-    let adj_clone = adj.clone();
-    glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
-        adj_clone.set_value(saved_scroll);
-    });
+    // 重新设置 ListBox 到 ScrolledWindow
+    sw.set_child(Some(list));
+
+    // 恢复滚动位置
+    adj.set_value(saved_scroll);
 }
 
 /// 执行快捷方式命令
