@@ -278,8 +278,9 @@ impl LogSource for SshSource {
 
             let _ = channel.wait_close();
 
-            // 线程结束时标记为不在运行，以便检测连接断开
-            running_clone.store(false, Ordering::SeqCst);
+            // 注意：不要在线程结束时设置 running=false
+            // 因为终端模式下命令执行完是很正常的，不应该触发重连
+            // 只有在 stop() 被调用时才设置 running=false
         });
 
         self.session = Some(session);
@@ -435,13 +436,14 @@ impl LogSource for SshFileWatchSource {
 
             let _ = channel.wait_close();
 
-            // 线程结束时标记为不在运行，以便检测连接断开
-            running.store(false, Ordering::SeqCst);
-
             // 清理 session
             if let Ok(mut session) = session_arc.lock() {
                 *session = None;
             }
+
+            // 对于文件监控模式，设置 running=false 以便检测断开
+            // 但终端模式下不需要（命令执行完毕是正常的）
+            running.store(false, Ordering::SeqCst);
         });
 
         Ok(())

@@ -1755,32 +1755,42 @@ fn add_shortcut_item(
     list.append(&row);
 }
 
-/// 上移行
+/// 上移行 - 通过交换配置数据来实现，避免 ListBox 自动滚动问题
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
-    let index = row.index();
+    let index = row.index() as usize;
     if index > 0 {
         // 保存滚动位置
         let scroll_pos = list.parent()
             .and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok())
             .map(|sw| sw.vadjustment().value());
 
-        // 执行移动
-        list.remove(row);
-        list.insert(row, index - 1);
-
-        // 延迟恢复滚动位置
-        if let Some(pos) = scroll_pos {
-            let list_clone = list.clone();
-            let pos_clone = pos;
-            glib::timeout_add_local(std::time::Duration::from_millis(20), move || {
-                if let Some(sw) = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-                    sw.vadjustment().set_value(pos_clone);
-                }
-                glib::ControlFlow::Break
-            });
+        // 在配置中交换顺序
+        {
+            let mut state_ref = state.borrow_mut();
+            let shortcuts = &mut state_ref.config.command_shortcuts;
+            if shortcuts.len() > index {
+                shortcuts.swap(index, index - 1);
+                let _ = state_ref.config.save();
+            }
         }
 
-        save_shortcuts_order(list, state);
+        // 清空并重新填充列表
+        while let Some(child) = list.first_child() {
+            list.remove(&child);
+        }
+
+        // 重新添加所有项
+        let shortcuts = state.borrow().config.command_shortcuts.clone();
+        for (i, shortcut) in shortcuts.into_iter().enumerate() {
+            add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i);
+        }
+
+        // 恢复滚动位置
+        if let Some(pos) = scroll_pos {
+            if let Some(sw) = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
+                sw.vadjustment().set_value(pos);
+            }
+        }
     }
 }
 
