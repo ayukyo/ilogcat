@@ -1702,7 +1702,7 @@ fn add_shortcut_item(
         // 恢复滚动位置
         if let Some(value) = saved_value {
             let list_clone2 = list_clone.clone();
-            glib::idle_add_local_once(move || {
+            glib::timeout_add_local_once(std::time::Duration::from_millis(200), move || {
                 if let Some(sw) = list_clone2.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
                     sw.vadjustment().set_value(value);
                 }
@@ -1743,10 +1743,10 @@ fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
             add_shortcut_item(list, &shortcut.name, &shortcut.command, state.clone(), i);
         }
 
-        // 延迟恢复滚动位置
+        // 使用更长延迟恢复滚动位置
         if let (Some(sw), Some(value)) = (sw, saved_value) {
             let adj = sw.vadjustment();
-            glib::idle_add_local_once(move || {
+            glib::timeout_add_local_once(std::time::Duration::from_millis(200), move || {
                 adj.set_value(value);
             });
         }
@@ -1875,7 +1875,7 @@ fn show_edit_shortcut_dialog(
                 // 恢复滚动位置
                 if let Some(value) = saved_value {
                     let list_clone2 = list_clone.clone();
-                    glib::idle_add_local_once(move || {
+                    glib::timeout_add_local_once(std::time::Duration::from_millis(200), move || {
                         if let Some(sw) = list_clone2.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
                             sw.vadjustment().set_value(value);
                         }
