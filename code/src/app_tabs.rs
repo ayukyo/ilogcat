@@ -1762,22 +1762,20 @@ fn add_shortcut_item(
 fn move_row_up(list: &ListBox, row: &ListBoxRow, state: Rc<RefCell<AppState>>) {
     let index = row.index();
     if index > 0 {
-        // 保存滚动位置
-        let scroll_pos = list.parent()
-            .and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok())
-            .map(|sw| sw.vadjustment().value());
+        // 获取滚动窗口和滚动位置
+        let scrolled_window = list.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok());
+        let scroll_pos = scrolled_window.as_ref().map(|sw| sw.vadjustment().value());
 
+        // 执行移动
         list.remove(row);
         list.insert(row, index - 1);
 
-        // 使用 idle_add 延迟恢复滚动位置（在 GTK 更新后）
-        if let Some(pos) = scroll_pos {
-            let list_clone = list.clone();
+        // 立即恢复滚动位置
+        if let (Some(sw), Some(pos)) = (scrolled_window, scroll_pos) {
+            let adj = sw.vadjustment();
+            // 阻止 GTK 自动调整滚动位置
             glib::idle_add_local_once(move || {
-                if let Some(sw) = list_clone.parent().and_then(|p| p.downcast::<gtk4::ScrolledWindow>().ok()) {
-                    let adj = sw.vadjustment();
-                    adj.set_value(pos);
-                }
+                adj.set_value(pos);
             });
         }
 
