@@ -83,38 +83,7 @@ fn apply_theme(theme: &str) {
                     min-width: 0.15em;
                     background-color: transparent;
                 }
-                .shortcut-bg-1 { background-color: #e3f2fd; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-2 { background-color: #f3e5f5; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-3 { background-color: #e8f5e9; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-4 { background-color: #fff3e0; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-5 { background-color: #e0f7fa; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-6 { background-color: #fce4ec; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-7 { background-color: #f1f8e9; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-8 { background-color: #fff8e1; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-9 { background-color: #e0f2f1; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-10 { background-color: #ede7f6; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-11 { background-color: #e1f5fe; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-12 { background-color: #fff9c4; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-13 { background-color: #e0f7fa; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-14 { background-color: #f3e5f5; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-15 { background-color: #e8f5e9; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-16 { background-color: #fff3e0; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-17 { background-color: #e3f2fd; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-18 { background-color: #fce4ec; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-19 { background-color: #f1f8e9; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-20 { background-color: #fff8e1; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-21 { background-color: #e0f2f1; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-22 { background-color: #ede7f6; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-23 { background-color: #e1f5fe; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-24 { background-color: #fff9c4; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-25 { background-color: #e0f7fa; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-26 { background-color: #f3e5f5; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-27 { background-color: #e8f5e9; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-28 { background-color: #fff3e0; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-29 { background-color: #e3f2fd; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-30 { background-color: #fce4ec; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-31 { background-color: #f1f8e9; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
-                .shortcut-bg-32 { background-color: #fff8e1; border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
+                .shortcut-bg { border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
             ";
             provider.load_from_data(css);
         }
@@ -1599,8 +1568,35 @@ fn add_shortcut_item(
     state: Rc<RefCell<AppState>>,
     color_index: usize,
 ) {
-    // 使用全局 CSS 定义的类名 (shortcut-bg-1 到 shortcut-bg-32)
-    let css_class = format!("shortcut-bg-{}", (color_index % 32) + 1);
+    // 基于名称 hash 生成颜色，确保同一快捷方式颜色一致
+    // 使用 HSL 颜色模型：色相基于 hash，饱和度 40%，亮度 90%（浅色）
+    let hash = {
+        let mut h = 0usize;
+        for c in name.chars() {
+            h = h.wrapping_mul(31).wrapping_add(c as usize);
+        }
+        h
+    };
+    let hue = (hash % 360) as i32;  // 色相 0-360
+    let saturation = 40;  // 饱和度 40%
+    let lightness = 90;   // 亮度 90%（浅色）
+
+    // 生成 CSS 背景色（使用 HSL）
+    let bg_css = format!(
+        ".shortcut-bg-dynamic-{} {{ background-color: hsl({}, {}%, {}%); border-radius: 0.3em; padding: 0.15em; }}",
+        color_index, hue, saturation, lightness
+    );
+
+    // 动态添加 CSS
+    let provider = gtk4::CssProvider::new();
+    provider.load_from_data(&bg_css);
+    if let Some(display) = gtk4::gdk::Display::default() {
+        gtk4::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
+        );
+    }
 
     let row_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
@@ -1609,7 +1605,7 @@ fn add_shortcut_item(
         .margin_bottom(2)
         .margin_start(4)
         .margin_end(4)
-        .css_classes(vec![css_class])
+        .css_classes(vec!["shortcut-bg".to_string(), format!("shortcut-bg-dynamic-{}", color_index)])
         .build();
 
     // 名称按钮（点击执行）
