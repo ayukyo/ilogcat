@@ -10,20 +10,11 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy manifests first for better caching
-COPY code/Cargo.toml code/Cargo.lock ./
+# Copy source code
+COPY code/ ./
 
-# Create dummy src to cache dependencies
-RUN mkdir src && \
-    echo "fn main() {}" > src/main.rs && \
-    cargo build --release && \
-    rm -rf src
-
-# Copy actual source
-COPY code/src ./src
-
-# Build for real
-RUN touch src/main.rs && cargo build --release
+# Build
+RUN cargo build --release
 
 # Runtime stage
 FROM debian:bookworm-slim
