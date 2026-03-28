@@ -19,18 +19,16 @@
     "progress": 100
   },
   "subtasks": [
-    {"name": "修复 SSH 连接问题", "status": "completed", "priority": "high"},
-    {"name": "修复按钮重复问题", "status": "completed", "priority": "high"},
-    {"name": "修复中文切换问题", "status": "completed", "priority": "medium"},
-    {"name": "代码质量检查", "status": "completed", "priority": "medium"},
-    {"name": "GitHub Actions 构建验证", "status": "completed", "priority": "high"}
+    {"name": "诊断 Docker 构建失败原因", "status": "completed", "priority": "high"},
+    {"name": "修复 Dockerfile Rust 版本", "status": "completed", "priority": "high"},
+    {"name": "监控 GitHub Actions 构建", "status": "completed", "priority": "high"}
   ],
-  "updated_at": "2026-03-27T00:32:00+08:00",
+  "updated_at": "2026-03-28T11:40:00+08:00",
   "last_build": {
-    "run_id": 23599066733,
-    "run_number": 151,
+    "run_id": 23676151261,
+    "run_number": 182,
     "status": "completed",
     "conclusion": "success",
-    "timestamp": "2026-03-26T14:14:12Z"
+    "timestamp": "2026-03-28T03:42:54Z"
   }
 }
