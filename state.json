@@ -28,11 +28,12 @@
   },
   "last_commit": "03d94bc",
   "last_build": {
-    "run_id": 23465659109,
-    "run_number": 106,
+    "run_id": 184,
+    "run_number": 184,
     "status": "completed",
     "conclusion": "success",
-    "timestamp": "2026-03-24T07:42:33Z"
+    "timestamp": "2026-03-30T03:50:00Z",
+    "note": "状态更新提交成功"
   },
-  "updated_at": "2026-03-24T07:45:00+08:00"
+  "updated_at": "2026-03-30T11:50:00+08:00"
 }
