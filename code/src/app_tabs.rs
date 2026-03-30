@@ -14,7 +14,7 @@ use crate::filter::Filter;
 use crate::config::Config;
 use crate::ui::tabs::{TabManager, LogTab};
 use crate::ui::TabSourceType as SourceType;
-use crate::ui::{SearchBar, SearchManager};
+use crate::ui::{SearchBar, SearchManager, FilePanel};
 use crate::ssh::config::SshConfig;
 use crate::stats::{StatsPanel, StatsDialog, LogStatistics};
 use crate::export::{ExportManager, ExportFormat};
@@ -122,6 +122,8 @@ pub struct AppState {
     pub command_shortcuts_list: Option<ListBox>,  // 命令快捷方式列表
     pub sidebar_visible: bool,  // 侧边栏是否可见
     pub shortcuts_edit_mode: bool,  // 快捷方式编辑模式
+    pub file_panel: Option<FilePanel>,  // SSH 文件面板
+    pub file_panel_visible: bool,  // 文件面板是否可见
 }
 
 impl AppState {
@@ -137,6 +139,8 @@ impl AppState {
             command_shortcuts_list: None,
             sidebar_visible: true,
             shortcuts_edit_mode: false,
+            file_panel: None,
+            file_panel_visible: false,
         }
     }
 }
@@ -182,8 +186,12 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     paned.set_resize_start_child(true);   // 允许调整大小
     paned.set_position(200);  // 默认宽度
 
-    // 创建工具栏（传入sidebar引用用于切换显示/隐藏）
-    let toolbar = create_toolbar(state.clone(), &window, sidebar.clone());
+    // 创建文件面板（在工具栏之前创建，用于切换按钮）
+    let file_panel = FilePanel::new();
+    file_panel.widget().set_visible(false);
+
+    // 创建工具栏（传入sidebar和file_panel引用用于切换显示/隐藏）
+    let toolbar = create_toolbar(state.clone(), &window, sidebar.clone(), file_panel.widget().clone());
     vbox.append(&toolbar);
 
     // 创建过滤栏
@@ -212,8 +220,26 @@ pub fn build_ui(app: &Application, state: Rc<RefCell<AppState>>) {
     // 设置标签页位置为顶部
     notebook.set_tab_pos(gtk4::PositionType::Top);
 
-    // 将 notebook 添加到 paned 的右侧
-    paned.set_end_child(Some(&notebook));
+    // 创建右侧 Paned：日志窗口 | 文件面板
+    let right_paned = Paned::builder()
+        .orientation(Orientation::Horizontal)
+        .hexpand(true)
+        .vexpand(true)
+        .build();
+    right_paned.set_start_child(Some(&notebook));
+    right_paned.set_end_child(Some(file_panel.widget()));
+    right_paned.set_shrink_end_child(false);
+    right_paned.set_resize_end_child(true);
+    right_paned.set_position(800);  // 日志窗口默认宽度
+
+    // 将右侧 Paned 添加到主 paned 的右侧
+    paned.set_end_child(Some(&right_paned));
+
+    // 保存文件面板引用
+    {
+        let mut state_ref = state.borrow_mut();
+        state_ref.file_panel = Some(file_panel.clone());
+    }
 
     // 初始化标签页管理器
     let tab_manager = Rc::new(RefCell::new(TabManager::new(notebook.clone())));
@@ -671,7 +697,7 @@ fn refresh_tab_titles(state: Rc<RefCell<AppState>>) -> glib::ControlFlow {
     glib::ControlFlow::Continue
 }
 
-fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow, sidebar: gtk4::Box) -> gtk4::Box {
+fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow, sidebar: gtk4::Box, file_panel_widget: gtk4::Box) -> gtk4::Box {
     let toolbar = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(6)
@@ -694,6 +720,25 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow, side
             state_ref.sidebar_visible
         };
         sidebar_clone.set_visible(visible);
+    });
+
+    // 文件面板切换按钮
+    let file_panel_toggle_btn = Button::builder()
+        .icon_name("folder-symbolic")
+        .tooltip_text("显示/隐藏文件面板")
+        .build();
+    toolbar.append(&file_panel_toggle_btn);
+
+    // 切换文件面板显示/隐藏
+    let state_clone = state.clone();
+    let file_panel_clone = file_panel_widget.clone();
+    file_panel_toggle_btn.connect_clicked(move |_| {
+        let visible = {
+            let mut state_ref = state_clone.borrow_mut();
+            state_ref.file_panel_visible = !state_ref.file_panel_visible;
+            state_ref.file_panel_visible
+        };
+        file_panel_clone.set_visible(visible);
     });
 
     let sep0 = Separator::new(Orientation::Vertical);
@@ -905,6 +950,20 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow, side
                             tab_clone.borrow_mut().append_terminal_output(&format!("当前目录: {}", current_path));
                             tab_clone.borrow_mut().append_terminal_output("输入命令开始执行...\n");
 
+                            // 初始化文件面板 SFTP
+                            if let Some(ref file_panel) = state_ref_clone.borrow().file_panel {
+                                file_panel.widget().set_visible(true);
+                                // 创建 SFTP 管理器
+                                match crate::ssh::SftpManager::connect(&ssh_config_clone) {
+                                    Ok(sftp) => {
+                                        file_panel.set_sftp(Some(sftp), Some(ssh_config_clone.clone()));
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to initialize SFTP: {}", e);
+                                    }
+                                }
+                            }
+
                             if let Some(ref tm) = state_ref_clone.borrow().tab_manager {
                                 tm.borrow().update_tab_title(tab_id);
                             }
@@ -914,6 +973,11 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow, side
                             // 连接失败
                             tab_clone.borrow_mut().append_terminal_output(&format!("连接失败: {}", e));
                             tab_clone.borrow_mut().set_ssh_connected(false);
+
+                            // 隐藏文件面板
+                            if let Some(ref file_panel) = state_ref_clone.borrow().file_panel {
+                                file_panel.widget().set_visible(false);
+                            }
 
                             crate::ui::dialogs::show_error_dialog(
                                 &window_for_error_clone,

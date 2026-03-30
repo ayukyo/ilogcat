@@ -74,7 +74,7 @@ pub struct SshSource {
     running: Arc<AtomicBool>,
     entries: crossbeam_channel::Receiver<LogEntry>,
     sender: crossbeam_channel::Sender<LogEntry>,
-    session: Option<Session>,
+    session: Arc<Mutex<Option<Session>>>,
     error: Arc<Mutex<Option<String>>>,
     /// 服务器时间偏移量（服务器时间 - 本地时间，单位：秒）
     time_offset: Arc<Mutex<Option<i64>>>,
@@ -93,7 +93,7 @@ impl SshSource {
             running: Arc::new(AtomicBool::new(false)),
             entries,
             sender,
-            session: None,
+            session: Arc::new(Mutex::new(None)),
             error: Arc::new(Mutex::new(None)),
             time_offset: Arc::new(Mutex::new(None)),
             terminal_mode: false,
@@ -151,6 +151,10 @@ impl LogSource for SshSource {
             anyhow::anyhow!("{}", err_msg)
         })?;
 
+        // 设置 TCP keepalive
+        let _ = tcp.set_read_timeout(Some(Duration::from_secs(30)));
+        let _ = tcp.set_write_timeout(Some(Duration::from_secs(30)));
+
         // 创建 SSH 会话
         let mut session = Session::new()
             .map_err(|e| anyhow::anyhow!("创建 SSH 会话失败: {}", e))?;
@@ -163,6 +167,9 @@ impl LogSource for SshSource {
                 }
                 anyhow::anyhow!("{}", err_msg)
             })?;
+
+        // 设置 SSH keepalive
+        session.set_keepalive(true, 30);
 
         // 认证 - 尝试多种认证方法
         match &self.config.auth {
@@ -222,6 +229,32 @@ impl LogSource for SshSource {
         );
         let time_offset_for_thread = time_offset;
         let terminal_mode = self.terminal_mode;
+
+        // 保存 session 用于心跳检测
+        *self.session.lock().unwrap() = Some(session);
+
+        // 启动心跳检测线程
+        let running_for_keepalive = running.clone();
+        let session_for_keepalive = self.session.clone();
+        thread::spawn(move || {
+            while running_for_keepalive.load(Ordering::SeqCst) {
+                thread::sleep(Duration::from_secs(30));
+                if !running_for_keepalive.load(Ordering::SeqCst) {
+                    break;
+                }
+                // 发送 keepalive 检测连接状态
+                if let Ok(mut session_guard) = session_for_keepalive.lock() {
+                    if let Some(ref mut session) = *session_guard {
+                        // keepalive 发送失败则标记断开
+                        if session.keepalive_send().is_err() {
+                            eprintln!("SSH keepalive failed, connection lost");
+                            running_for_keepalive.store(false, Ordering::SeqCst);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
 
         // 启动读取线程 - 同时读取 stdout 和 stderr
         let running_clone = running.clone();
@@ -297,13 +330,14 @@ impl LogSource for SshSource {
             }
         });
 
-        self.session = Some(session);
         Ok(())
     }
 
     fn stop(&mut self) -> anyhow::Result<()> {
         self.running.store(false, Ordering::SeqCst);
-        self.session = None;
+        if let Ok(mut session) = self.session.lock() {
+            *session = None;
+        }
         Ok(())
     }
 
