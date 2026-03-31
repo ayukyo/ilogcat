@@ -151,9 +151,9 @@ impl LogSource for SshSource {
             anyhow::anyhow!("{}", err_msg)
         })?;
 
-        // 设置 TCP keepalive
-        let _ = tcp.set_read_timeout(Some(Duration::from_secs(30)));
-        let _ = tcp.set_write_timeout(Some(Duration::from_secs(30)));
+        // 设置 TCP keepalive（减少超时以便更快检测断开）
+        let _ = tcp.set_read_timeout(Some(Duration::from_secs(15)));
+        let _ = tcp.set_write_timeout(Some(Duration::from_secs(15)));
 
         // 创建 SSH 会话
         let mut session = Session::new()
@@ -168,8 +168,8 @@ impl LogSource for SshSource {
                 anyhow::anyhow!("{}", err_msg)
             })?;
 
-        // 设置 SSH keepalive
-        session.set_keepalive(true, 30);
+        // 设置 SSH keepalive（10秒间隔）
+        session.set_keepalive(true, 10);
 
         // 认证 - 尝试多种认证方法
         match &self.config.auth {
@@ -238,7 +238,7 @@ impl LogSource for SshSource {
         let session_for_keepalive = self.session.clone();
         thread::spawn(move || {
             while running_for_keepalive.load(Ordering::SeqCst) {
-                thread::sleep(Duration::from_secs(30));
+                thread::sleep(Duration::from_secs(10));  // 10秒检查一次
                 if !running_for_keepalive.load(Ordering::SeqCst) {
                     break;
                 }

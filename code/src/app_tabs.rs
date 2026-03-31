@@ -98,6 +98,7 @@ fn apply_theme(theme: &str) {
                 .shortcut-bg { border-radius: 0.3em; padding: 0.25em; margin: 0.15em; }
                 .shortcut-name { padding: 0; }
                 .shortcut-name label { justify-content: start; }
+                .error { color: #ff4444; font-weight: bold; }
             ";
             provider.load_from_data(css);
         }
@@ -950,9 +951,8 @@ fn create_toolbar(state: Rc<RefCell<AppState>>, window: &ApplicationWindow, side
                             tab_clone.borrow_mut().append_terminal_output(&format!("当前目录: {}", current_path));
                             tab_clone.borrow_mut().append_terminal_output("输入命令开始执行...\n");
 
-                            // 初始化文件面板 SFTP
+                            // 初始化文件面板 SFTP（不自动显示面板，让用户手动切换）
                             if let Some(ref file_panel) = state_ref_clone.borrow().file_panel {
-                                file_panel.widget().set_visible(true);
                                 // 创建 SFTP 管理器
                                 match crate::ssh::SftpManager::connect(&ssh_config_clone) {
                                     Ok(sftp) => {

@@ -1,6 +1,6 @@
 use ssh2::{Session, Sftp};
 use std::path::{Path, PathBuf};
-use std::io::{Read, Write, BufReader, BufWriter};
+use std::io::{Read, Write, BufReader, BufWriter, Seek, SeekFrom};
 use std::fs::File;
 use std::net::TcpStream;
 use std::time::Duration;
@@ -40,6 +40,9 @@ impl SftpEntry {
         }
     }
 }
+
+/// 进度回调类型
+pub type ProgressCallback = Box<dyn Fn(u64, u64) + Send>;  // (已传输字节数, 总字节数)
 
 /// SFTP 文件管理器
 pub struct SftpManager {
@@ -201,15 +204,22 @@ impl SftpManager {
         &self.home_path
     }
 
-    /// 下载文件
-    pub fn download(&self, remote_path: &Path, local_path: &Path) -> Result<()> {
+    /// 下载文件（带进度回调）
+    pub fn download_with_progress(&self, remote_path: &Path, local_path: &Path, progress: Option<ProgressCallback>) -> Result<()> {
         let mut remote_file = self.sftp.open(remote_path)
             .with_context(|| format!("Failed to open remote file: {:?}", remote_path))?;
+
+        // 获取文件大小
+        let stat = self.sftp.stat(remote_path)
+            .with_context(|| format!("Failed to stat remote file: {:?}", remote_path))?;
+        let total_size = stat.size.unwrap_or(0);
 
         let mut local_file = File::create(local_path)
             .with_context(|| format!("Failed to create local file: {:?}", local_path))?;
 
         let mut buffer = vec![0u8; 64 * 1024]; // 64KB buffer
+        let mut transferred = 0u64;
+
         loop {
             let bytes_read = remote_file.read(&mut buffer)
                 .context("Failed to read from remote file")?;
@@ -218,13 +228,23 @@ impl SftpManager {
             }
             local_file.write_all(&buffer[..bytes_read])
                 .context("Failed to write to local file")?;
+
+            transferred += bytes_read as u64;
+            if let Some(ref cb) = progress {
+                cb(transferred, total_size);
+            }
         }
 
         Ok(())
     }
 
-    /// 下载文件夹（递归）
-    pub fn download_dir(&self, remote_path: &Path, local_path: &Path) -> Result<()> {
+    /// 下载文件
+    pub fn download(&self, remote_path: &Path, local_path: &Path) -> Result<()> {
+        self.download_with_progress(remote_path, local_path, None)
+    }
+
+    /// 下载文件夹（递归，带进度回调）
+    pub fn download_dir_with_progress(&self, remote_path: &Path, local_path: &Path, progress: Option<&dyn Fn(u64, u64)>) -> Result<u64> {
         // 创建本地目录
         std::fs::create_dir_all(local_path)
             .with_context(|| format!("Failed to create local directory: {:?}", local_path))?;
@@ -233,56 +253,215 @@ impl SftpManager {
         let entries = self.list_path(remote_path)
             .with_context(|| format!("Failed to list remote directory: {:?}", remote_path))?;
 
+        let mut total_transferred = 0u64;
+
         for entry in entries {
             let remote_entry_path = entry.path.clone();
             let local_entry_path = local_path.join(&entry.name);
 
             if entry.is_dir {
                 // 递归下载子目录
-                self.download_dir(&remote_entry_path, &local_entry_path)?;
+                let transferred = self.download_dir_with_progress(&remote_entry_path, &local_entry_path, progress)?;
+                total_transferred += transferred;
             } else {
                 // 下载文件
-                self.download(&remote_entry_path, &local_entry_path)?;
+                self.download_file_with_progress(&remote_entry_path, &local_entry_path, progress)?;
+                total_transferred += entry.size;
             }
         }
+
+        Ok(total_transferred)
+    }
+
+    /// 下载文件（带进度回调）- 内部方法
+    fn download_file_with_progress(&self, remote_path: &Path, local_path: &Path, progress: Option<&dyn Fn(u64, u64)>) -> Result<()> {
+        let mut remote_file = self.sftp.open(remote_path)
+            .with_context(|| format!("Failed to open remote file: {:?}", remote_path))?;
+
+        // 获取文件大小
+        let stat = self.sftp.stat(remote_path)
+            .with_context(|| format!("Failed to stat remote file: {:?}", remote_path))?;
+        let total_size = stat.size.unwrap_or(0);
+
+        let mut local_file = File::create(local_path)
+            .with_context(|| format!("Failed to create local file: {:?}", local_path))?;
+
+        let mut buffer = vec![0u8; 64 * 1024]; // 64KB buffer
+        let mut transferred = 0u64;
+
+        loop {
+            let bytes_read = remote_file.read(&mut buffer)
+                .context("Failed to read from remote file")?;
+            if bytes_read == 0 {
+                break;
+            }
+            local_file.write_all(&buffer[..bytes_read])
+                .context("Failed to write to local file")?;
+
+            transferred += bytes_read as u64;
+            if let Some(cb) = progress {
+                cb(transferred, total_size);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// 下载文件夹（递归）
+    pub fn download_dir(&self, remote_path: &Path, local_path: &Path) -> Result<()> {
+        self.download_dir_with_progress(remote_path, local_path, None)?;
+        Ok(())
+    }
+
+    /// 上传文件（带进度回调）
+    pub fn upload_with_progress(&self, local_path: &Path, remote_path: &Path, progress: Option<ProgressCallback>) -> Result<()> {
+        self.upload_file_with_progress(local_path, remote_path, progress.as_ref().map(|p| p as &dyn Fn(u64, u64)))
+    }
+
+    /// 上传文件（带进度回调）- 内部方法
+    fn upload_file_with_progress(&self, local_path: &Path, remote_path: &Path, progress: Option<&dyn Fn(u64, u64)>) -> Result<()> {
+        let mut local_file = File::open(local_path)
+            .with_context(|| format!("无法打开本地文件: {:?}", local_path))?;
+
+        // 获取本地文件大小
+        let total_size = local_file.metadata()
+            .with_context(|| format!("无法获取文件信息: {:?}", local_path))?
+            .len();
+
+        let remote_file = self.sftp.create(remote_path)
+            .with_context(|| format!("无法创建远程文件: {:?}", remote_path))?;
+
+        let mut writer = BufWriter::new(remote_file);
+        let mut buffer = vec![0u8; 64 * 1024]; // 64KB buffer
+        let mut transferred = 0u64;
+
+        loop {
+            let bytes_read = local_file.read(&mut buffer)
+                .context("读取本地文件失败")?;
+            if bytes_read == 0 {
+                break;
+            }
+            writer.write_all(&buffer[..bytes_read])
+                .context("写入远程文件失败")?;
+
+            transferred += bytes_read as u64;
+            if let Some(cb) = progress {
+                cb(transferred, total_size);
+            }
+        }
+
+        // 刷新缓冲区确保所有数据写入
+        writer.flush()
+            .context("刷新写入缓冲区失败")?;
 
         Ok(())
     }
 
     /// 上传文件
     pub fn upload(&self, local_path: &Path, remote_path: &Path) -> Result<()> {
-        let mut local_file = File::open(local_path)
-            .with_context(|| format!("Failed to open local file: {:?}", local_path))?;
+        self.upload_with_progress(local_path, remote_path, None)
+    }
 
-        let remote_file = self.sftp.create(remote_path)
-            .with_context(|| format!("Failed to create remote file: {:?}", remote_path))?;
+    /// 上传文件夹（递归，带进度回调）
+    pub fn upload_dir_with_progress(&self, local_path: &Path, remote_path: &Path, progress: Option<&dyn Fn(u64, u64)>) -> Result<u64> {
+        // 创建远程目录
+        self.mkdir(remote_path).ok(); // 忽略已存在错误
 
-        let mut writer = BufWriter::new(remote_file);
-        let mut buffer = vec![0u8; 64 * 1024]; // 64KB buffer
+        // 遍历本地目录
+        let entries = std::fs::read_dir(local_path)
+            .with_context(|| format!("Failed to read local directory: {:?}", local_path))?;
 
-        loop {
-            let bytes_read = local_file.read(&mut buffer)
-                .context("Failed to read from local file")?;
-            if bytes_read == 0 {
-                break;
+        let mut total_transferred = 0u64;
+
+        for entry in entries {
+            let entry = entry.context("Failed to read directory entry")?;
+            let local_entry_path = entry.path();
+            let remote_entry_path = remote_path.join(entry.file_name());
+
+            let file_type = entry.file_type()
+                .with_context(|| format!("Failed to get file type: {:?}", local_entry_path))?;
+
+            if file_type.is_dir() {
+                // 递归上传子目录
+                let transferred = self.upload_dir_with_progress(&local_entry_path, &remote_entry_path, progress)?;
+                total_transferred += transferred;
+            } else if file_type.is_file() {
+                // 上传文件
+                let size = entry.metadata()
+                    .with_context(|| format!("Failed to get file metadata: {:?}", local_entry_path))?
+                    .len();
+                self.upload_file_with_progress(&local_entry_path, &remote_entry_path, progress)?;
+                total_transferred += size;
             }
-            writer.write_all(&buffer[..bytes_read])
-                .context("Failed to write to remote file")?;
         }
 
+        Ok(total_transferred)
+    }
+
+    /// 上传文件夹（递归）
+    pub fn upload_dir(&self, local_path: &Path, remote_path: &Path) -> Result<()> {
+        self.upload_dir_with_progress(local_path, remote_path, None)?;
         Ok(())
     }
 
     /// 删除文件
     pub fn delete_file(&self, path: &Path) -> Result<()> {
         self.sftp.unlink(path)
-            .with_context(|| format!("Failed to delete file: {:?}", path))
+            .with_context(|| format!("删除文件失败: {:?}", path))
     }
 
-    /// 删除目录
-    pub fn delete_dir(&self, path: &Path) -> Result<()> {
+    /// 计算目录总大小（用于进度计算）
+    pub fn dir_size(&self, path: &Path) -> Result<u64> {
+        let entries = self.list_path(path)
+            .with_context(|| format!("无法列出目录: {:?}", path))?;
+
+        let mut total = 0u64;
+        for entry in entries {
+            if entry.is_dir {
+                total += self.dir_size(&entry.path)?;
+            } else {
+                total += entry.size;
+            }
+        }
+        Ok(total)
+    }
+
+    /// 删除目录（递归删除非空目录，带进度回调）
+    pub fn delete_dir_with_progress(&self, path: &Path, progress: Option<&dyn Fn(u64, u64)>) -> Result<u64> {
+        // 获取总大小用于进度计算
+        let total_size = self.dir_size(path).ok().unwrap_or(0);
+        let mut deleted_size = 0u64;
+
+        // 先删除目录内容
+        let entries = self.list_path(path)
+            .with_context(|| format!("无法列出目录: {:?}", path))?;
+
+        for entry in entries {
+            let entry_path = entry.path.clone();
+            if entry.is_dir {
+                let size = self.delete_dir_with_progress(&entry_path, progress)?;
+                deleted_size += size;
+            } else {
+                self.delete_file(&entry_path)?;
+                deleted_size += entry.size;
+            }
+
+            if let Some(cb) = progress {
+                cb(deleted_size, total_size);
+            }
+        }
+
+        // 删除空目录
         self.sftp.rmdir(path)
-            .with_context(|| format!("Failed to delete directory: {:?}", path))
+            .with_context(|| format!("删除目录失败: {:?}", path))?;
+
+        Ok(deleted_size)
+    }
+
+    /// 删除目录（递归删除非空目录）
+    pub fn delete_dir(&self, path: &Path) -> Result<()> {
+        self.delete_dir_with_progress(path, None)?;
+        Ok(())
     }
 
     /// 重命名
