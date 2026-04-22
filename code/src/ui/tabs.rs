@@ -1042,51 +1042,59 @@ impl TabManager {
         });
         command_entry.add_controller(key_controller);
 
+        // 预创建历史菜单 Popover（复用，避免每次点击都创建）
+        let history_popover = gtk4::Popover::builder()
+            .has_arrow(true)
+            .build();
+        history_popover.set_parent(&history_btn);
+
         // 历史按钮点击事件
         let history_ref = history_ref.clone();
         let command_entry_clone = command_entry.clone();
-        let history_btn_for_popover = history_btn.clone();
+        let popover_ref = history_popover.clone();
         history_btn.connect_clicked(move |_| {
             let history = history_ref.borrow().clone();
             if history.is_empty() {
                 return;
             }
 
-            // 创建历史菜单
-            let popover = gtk4::Popover::builder()
-                .has_arrow(true)
-                .build();
+            // 创建垂直容器
+            let container = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+            container.set_size_request(350, -1);  // 宽度350，高度自适应
+
+            // 创建 ListBox
             let list_box = gtk4::ListBox::new();
+            list_box.set_selection_mode(gtk4::SelectionMode::Single);
 
             for cmd in &history {
+                let row = gtk4::ListBoxRow::new();
+                row.set_selectable(true);
                 let label = Label::new(Some(cmd));
                 label.set_halign(gtk4::Align::Start);
+                label.set_hexpand(true);
                 label.set_margin_start(8);
                 label.set_margin_end(8);
                 label.set_margin_top(4);
                 label.set_margin_bottom(4);
-                list_box.append(&label);
+                row.set_child(Some(&label));
+                list_box.append(&row);
             }
 
+            container.append(&list_box);
+
             let command_entry_for_cb = command_entry_clone.clone();
-            let popover_clone = popover.clone();
+            let popover_clone = popover_ref.clone();
             list_box.connect_row_activated(move |_, row| {
                 if let Some(label) = row.child().and_then(|c| c.downcast::<Label>().ok()) {
                     let text = label.text().to_string();
                     command_entry_for_cb.set_text(&text);
-                    command_entry_for_cb.emit_activate();  // 直接执行
-                    popover_clone.popdown();  // 关闭菜单
+                    command_entry_for_cb.emit_activate();
+                    popover_clone.popdown();
                 }
             });
 
-            let scrolled = gtk4::ScrolledWindow::builder()
-                .max_content_height(300)
-                .hscrollbar_policy(gtk4::PolicyType::Never)
-                .build();
-            scrolled.set_child(Some(&list_box));
-            popover.set_child(Some(&scrolled));
-            popover.set_parent(&history_btn_for_popover);
-            popover.popup();
+            popover_ref.set_child(Some(&container));
+            popover_ref.popup();
         });
 
         // 切换到新标签页
